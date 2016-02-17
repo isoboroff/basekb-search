@@ -140,8 +140,10 @@ import static spark.Spark.*;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 
-
 public class SearchServer {
+
+    public int server_port = 8080;
+
 
 	protected static Map<String, String> docToMap(Document doc) {
 		Map<String, String> m = new LinkedHashMap<>();
@@ -155,9 +157,10 @@ public class SearchServer {
 		}
 		return m;
 	}
-	
+
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
+		SearchServer srv = new SearchServer();
         FreebaseTools tools = new FreebaseTools(args); 
         try {
             if (tools.showVersion) {
@@ -176,6 +179,7 @@ public class SearchServer {
             }
 
 			staticFileLocation("/public");
+			port(srv.server_port);
 			PebbleEngine engine = new PebbleEngine.Builder().build();
 
 			PebbleTemplate main_template = engine.getTemplate("templates/main.peb");
