@@ -1,0 +1,39 @@
+# Configuration options for scripts and FreebaseTools
+# Assumes FBT_HOME has been set in the calling script.
+setenv FBT_HOME      /Users/soboroff/basekb-search
+setenv SORT_DIR      $FBT_HOME/sort
+
+# make sure this is set in your environment to your locale and UTF-8 or set it in here:
+#setenv LANG en_US.UTF-8
+
+setenv LUCENE_INDEXED_PREDS $FBT_HOME/classes/indexed-preds.lst
+
+# Default analyzer used in a mono-lingual setting or for strings without a language designation:
+setenv LUCENE_INDEX_ANALYZER_DEFAULT org.apache.lucene.analysis.standard.StandardAnalyzer
+
+# Settings for a mono-lingual English-only version:
+
+#setenv IGNORE_LANGS  $FBT_HOME/ignore-langs.lst
+#setenv IGNORE_PREDS  $FBT_HOME/ignore-preds.lst
+#setenv IGNORE_VALUES $FBT_HOME/ignore-values.lst
+
+#setenv LUCENE_DEFAULT_FIELD rs_label
+#setenv LUCENE_INDEX_OPTIONS "-nn -v"
+#setenv LUCENE_INDEX         $FBT_HOME/data/basekb-gold-jan-2015.shrink.sort.index
+
+
+# Uncomment these settings for a tri-lingual -il version:
+
+setenv IGNORE_LANGS  $FBT_HOME/ignore-langs-trilingual.lst
+setenv IGNORE_PREDS  $FBT_HOME/ignore-preds-trilingual.lst
+setenv IGNORE_VALUES $FBT_HOME/ignore-values-trilingual.lst
+
+setenv LUCENE_DEFAULT_FIELD rs_label@en
+setenv LUCENE_INDEX_OPTIONS "-nn -v"
+setenv LUCENE_INDEX         /Users/soboroff/basekb/basekb-shrink-index
+
+# Language-specific analyzers used for all variants (to force a different analyzer for
+# a language variant, explicitly define it here, e.g., LUCENE_INDEX_ANALYZER_ZH_HANT):
+setenv LUCENE_INDEX_ANALYZER_EN      org.apache.lucene.analysis.en.EnglishAnalyzer
+setenv LUCENE_INDEX_ANALYZER_ES      org.apache.lucene.analysis.es.SpanishAnalyzer
+setenv LUCENE_INDEX_ANALYZER_ZH      org.apache.lucene.analysis.cjk.CJKAnalyzer
