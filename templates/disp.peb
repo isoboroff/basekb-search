@@ -22,32 +22,15 @@
     <div class="container">
 
 	<hgroup class="mb20">
-	  <h1>Search Results</h1>
-	  <h2 class="lead"><strong class="text-danger">{{ totalHits }}</strong>
-	    results were found for the search
-	  for <strong class="text-danger">{{ query }} </strong></h2>
+	  <h1>{{ doc.rs_label }}</h1>
+	  [ {{ subject }} ; {{ docid }} ]
 	</hgroup>
 
 	<section class="col-xs-12 col-sm-6 col-md-12">
-	  {% for doc in docmap %}
 	  <article class="search-result row">
-	    <div class="col-xs-12 col-sm-12 col-md-3">
-	      <ul class="meta-search">
-		<li><i class="glyphicon
-		glyphicon-search"></i> <span>{{ loop.index + 1 }}: {{ hits[loop.index].doc }}</span></li>
-		<li><i class="glyphicon glyphicon-signal"></i> <span>{{ hits[loop.index].score }}</span></li>
-		<li><i class="glyphicon glyphicon-tags"></i> <span class="small">{{ doc.r_type }}</span></li>
-	      </ul>
-	    </div>
-	    <div class="col-xs-12 col-sm-12 col-md-8 excerpet">
-	      <h3><a href="/lookup/{{ doc.subject }}" title="">{{ doc.rs_label }} ({{ doc.subject}})</a></h3>
-	      <pre>{{ fulldoc[loop.index] | raw }}</pre>						
-              <!-- <span class="plus"><a href="#" title="Lorem ipsum"><i class="glyphicon glyphicon-plus"></i></a></span> -->
-	    </div>
+	    <pre>{{ text | raw }}</pre>		
 	    <span class="clearfix borda"></span>
 	  </article>
-	  {% endfor %}
-
 	</section>
 </div>
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->

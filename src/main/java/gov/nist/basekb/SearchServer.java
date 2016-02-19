@@ -188,9 +188,12 @@ public class SearchServer {
 				main_template.evaluate(buf);
 				return buf.toString();
 			});
-			
+
+			PebbleTemplate disp_template = engine.getTemplate("templates/disp.peb");
+			Pattern mid_pattern = Pattern.compile("(f_m\\.[0-9a-z_]+)");
             get("/lookup/:subject", (req, res) -> {
 				tools.getIndexReader();
+				Map<String, Object> context = new HashMap<>();
 				int docid = tools.getSubjectDocID(req.params(":subject"));
 				if (docid < 0) {
 					halt(404, "Subject not found");
@@ -199,7 +202,15 @@ public class SearchServer {
 					StringWriter bufw = new StringWriter();
 					PrintWriter out = new PrintWriter(bufw);
 					tools.printSubjectAllPredicates(doc, -1, out);
-					res.type("text/plain");
+					String textdoc = mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
+					// s{(f_m.[0-9a-z_]*)}{<a http="/lookup/$1">}g
+					context.put("text", textdoc);
+					context.put("doc", docToMap(doc));
+					context.put("docid", docid);
+					context.put("subject", req.params(":subject"));
+
+					bufw.getBuffer().setLength(0);
+					disp_template.evaluate(bufw, context);
 					return bufw.toString();
 				}
 				return null;
@@ -231,7 +242,7 @@ public class SearchServer {
 					float score = hits[i].score;
 					Document doc = tools.getDocumentInMode(docid);
 					tools.printSubjectAllPredicates(doc, score, out);
-					fulldoc[i] = bufw.toString();
+					fulldoc[i] =  mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
 					docmaps.add(docToMap(doc));
 				}
 				context.put("fulldoc", fulldoc);
