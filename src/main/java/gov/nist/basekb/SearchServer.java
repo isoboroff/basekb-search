@@ -158,6 +158,36 @@ public class SearchServer {
 		return m;
 	}
 
+    protected static void printSubjectVerbose(Document subject, float score, String indent,
+											  FreebaseTools tools, PrintWriter out) throws IOException {
+        // Pretty-print everything we know about `subject' to `out'.
+        // Annotate its `score' if it is non-negative.
+        if (score >= 0.0)
+            out.println(tools.getSubjectName(subject) + ": [score=" + score + "]");
+        else
+            out.println(tools.getSubjectName(subject) + ":");
+        for (IndexableField field : subject.getFields()) {
+            if (! tools.FIELD_NAME_SUBJECT.equals(field.name())) {
+				out.print(indent + field.name() + ": " + tools.normalizeNewlines(field.stringValue()));
+				if (field.stringValue().startsWith("f_m.")) {
+					int docid = tools.getSubjectDocID(field.stringValue());
+					if (docid > 0) {
+						Document new_subj = tools.getDocumentInMode(docid);
+					INNER: for (IndexableField new_field : new_subj.getFields()) {
+							if ((new_field.name().equals("rs_label") ||
+								 new_field.name().equals("f_type.object.name")) &&
+								(new_field.stringValue().endsWith("@en"))) {
+								out.print(" (" + tools.normalizeNewlines(new_field.stringValue()) + ")");
+								break INNER;
+							}
+						}
+					}
+				}
+				out.println("");
+			}
+        }
+    }
+
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
 		SearchServer srv = new SearchServer();
@@ -201,7 +231,8 @@ public class SearchServer {
 					Document doc = tools.getDocumentInMode(docid);
 					StringWriter bufw = new StringWriter();
 					PrintWriter out = new PrintWriter(bufw);
-					tools.printSubjectAllPredicates(doc, -1, out);
+					// tools.printSubjectRecursive(doc, -1, out);
+					printSubjectVerbose(doc, -1, "    ", tools, out);
 					String textdoc = mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
 					// s{(f_m.[0-9a-z_]*)}{<a http="/lookup/$1">}g
 					context.put("text", textdoc);
@@ -241,7 +272,8 @@ public class SearchServer {
 					int docid = hits[i].doc;
 					float score = hits[i].score;
 					Document doc = tools.getDocumentInMode(docid);
-					tools.printSubjectAllPredicates(doc, score, out);
+					// tools.printSubjectAllPredicates(doc, score, out);
+					printSubjectVerbose(doc, score, "    ", tools, out);
 					fulldoc[i] =  mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
 					docmaps.add(docToMap(doc));
 				}
