@@ -30,7 +30,7 @@ setenv IGNORE_VALUES $FBT_HOME/ignore-values-trilingual.lst
 
 setenv LUCENE_DEFAULT_FIELD rs_label@en
 setenv LUCENE_INDEX_OPTIONS "-nn -v"
-setenv LUCENE_INDEX         /Users/soboroff/basekb/basekb-shrink-index
+setenv LUCENE_INDEX         /Users/soboroff/basekb/basekb-shrink-un-so-index
 
 # Language-specific analyzers used for all variants (to force a different analyzer for
 # a language variant, explicitly define it here, e.g., LUCENE_INDEX_ANALYZER_ZH_HANT):
