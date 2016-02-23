@@ -103,6 +103,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
@@ -113,6 +114,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
+
+// Guava goodies
+import com.google.common.collect.Multimap;
+import com.google.common.collect.ArrayListMultimap;
 
 // Lucene:
 import org.apache.lucene.analysis.Analyzer;
@@ -144,8 +149,7 @@ public class SearchServer {
 
     public int server_port = 8080;
 
-
-	protected static Map<String, String> docToMap(Document doc) {
+	public static Map<String, String> docToMap(Document doc) {
 		Map<String, String> m = new LinkedHashMap<>();
 		for (IndexableField field: doc.getFields()) {
 			String key = field.name();
@@ -155,10 +159,10 @@ public class SearchServer {
 			}
 			m.put(key, val);
 		}
-		return m;
+		return m;	  
 	}
 
-    protected static void printSubjectVerbose(Document subject, float score, String indent,
+    public static void printSubjectVerbose(Document subject, float score, String indent,
 											  FreebaseTools tools, PrintWriter out) throws IOException {
         // Pretty-print everything we know about `subject' to `out'.
         // Annotate its `score' if it is non-negative.
@@ -188,10 +192,31 @@ public class SearchServer {
         }
     }
 
+	public static String getFirstEnglishValue(Document doc, String key) {
+		for (String v: doc.getValues(key)) {
+			if (v.endsWith("@en")) {
+				return v;
+			}
+		}
+		return null;
+	}
+	
+	public static void render_short(Document doc, float score, PrintWriter out) {
+		if (score > 0.0) {
+			out.println(doc.get("subject") + ": [" + score + "]");
+		} else {
+			out.println(doc.get("subject") + ":");
+		}
+		out.println("    " + getFirstEnglishValue(doc, "rs_label"));
+		out.println("    " + getFirstEnglishValue(doc, "f_common.topic.description"));
+	}
+	
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
 		SearchServer srv = new SearchServer();
-        FreebaseTools tools = new FreebaseTools(args); 
+        FreebaseTools tools = new FreebaseTools(args);
+		EntityRenderer render = new EntityRenderer();
+		
         try {
             if (tools.showVersion) {
                 System.err.println(tools.versionString);
@@ -220,8 +245,7 @@ public class SearchServer {
 			});
 
 			PebbleTemplate disp_template = engine.getTemplate("templates/disp.peb");
-			Pattern mid_pattern = Pattern.compile("(f_m\\.[0-9a-z_]+)");
-            get("/lookup/:subject", (req, res) -> {
+			get("/lookup/:subject", (req, res) -> {
 				tools.getIndexReader();
 				Map<String, Object> context = new HashMap<>();
 				int docid = tools.getSubjectDocID(req.params(":subject"));
@@ -230,12 +254,8 @@ public class SearchServer {
 				} else {
 					Document doc = tools.getDocumentInMode(docid);
 					StringWriter bufw = new StringWriter();
-					PrintWriter out = new PrintWriter(bufw);
-					// tools.printSubjectRecursive(doc, -1, out);
-					printSubjectVerbose(doc, -1, "    ", tools, out);
-					String textdoc = mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
-					// s{(f_m.[0-9a-z_]*)}{<a http="/lookup/$1">}g
-					context.put("text", textdoc);
+					render.render(doc, bufw);
+					context.put("text", bufw.toString());
 					context.put("doc", docToMap(doc));
 					context.put("docid", docid);
 					context.put("subject", req.params(":subject"));
@@ -250,7 +270,6 @@ public class SearchServer {
 			PebbleTemplate serp_template = engine.getTemplate("templates/serp.peb");
             get("/search", (req, res) -> {
 				StringWriter bufw = new StringWriter();
-				PrintWriter out = new PrintWriter(bufw);
 				tools.getIndexSearcher();
 				tools.getIndexAnalyzer();
 				Query q = new QueryParser(tools.getDefaultSearchField(),
@@ -272,9 +291,9 @@ public class SearchServer {
 					int docid = hits[i].doc;
 					float score = hits[i].score;
 					Document doc = tools.getDocumentInMode(docid);
-					// tools.printSubjectAllPredicates(doc, score, out);
-					printSubjectVerbose(doc, score, "    ", tools, out);
-					fulldoc[i] =  mid_pattern.matcher(bufw.getBuffer()).replaceAll("<a href=\"/lookup/$1\">$1</a>");
+					render.render(doc, bufw, score);
+
+					fulldoc[i] = bufw.toString();
 					docmaps.add(docToMap(doc));
 				}
 				context.put("fulldoc", fulldoc);
