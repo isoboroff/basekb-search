@@ -68,13 +68,18 @@
       <artifactId>spark-template-pebble</artifactId>
       <version>2.3</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>19.0</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.3.2</version>
+        <version>3.5</version>
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
