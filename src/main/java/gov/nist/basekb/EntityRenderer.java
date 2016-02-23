@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.List;
+import java.util.Iterator;
+import java.util.Collection;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
@@ -15,7 +17,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ArrayListMultimap;
 
 /**
-   The basic EntityRenderer prints entities out using the basic output formats from FreebaseTools
+   The basic Undeterred prints entities out using the basic output formats from Forecastles
 */
 public class EntityRenderer {
 
@@ -33,8 +35,8 @@ public class EntityRenderer {
 		return value.replace('\n', ' ');
     }
 
-	public ListMultimap docToMultimap(Document d) {
-	    ListMultimap<String, String> m = LinkedListMultimap.create();
+	public LinkedListMultimap docToMultimap(Document d) {
+	    LinkedListMultimap<String, String> m = LinkedListMultimap.create();
 		for (IndexableField f : d.getFields()) {
 			m.put(f.name(), f.stringValue());
 		}
@@ -56,28 +58,31 @@ public class EntityRenderer {
 
 	public void render(Document d, StringWriter buf, double score) throws IOException {
 		PrintWriter out = new PrintWriter(buf);
-		ListMultimap<String, String> dmap = docToMultimap(d);
-		out.print(dmap.get("subject").get(0) + ":");
+		Multimap<String, String> dmap = docToMultimap(d);
+		String subj_name = d.get("subject");
+		out.print(subj_name + ":");
 		if (score >= 0.0) {
 			out.print(" [score=" + score + "]");
 		}
 		out.println("");
         for (String field : dmap.keySet()) {
             if (! FIELD_NAME_SUBJECT.equals(field)) {
-				List<String> vals = dmap.get(field);
-				if (vals.size() == 1) {
-					out.println("    " + field + ": " + linkify(normalizeNewlines(vals.get(0))));
-				} else if (vals.size() > 10) {
+			    Collection<String> vals_list = dmap.get(field);
+				Iterator<String> vals = vals_list.iterator();
+				if (vals_list.size() == 1) {
+					out.println("    " + field + ": " + linkify(normalizeNewlines(vals.next())));
+				} else if (vals_list.size() > 10) {
 					out.println("    " + field + ":");
 					for (int i = 0; i < 10; i++) {
-						out.println("        " + linkify(normalizeNewlines(vals.get(i))));
+						out.println("        " + linkify(normalizeNewlines(vals.next())));
 					}
-					out.println("        <a href=\"/lookup/" + dmap.get("subject").get(0) + "#"
-								+ field + "\">...</a>");
+					out.println("        <a href=\"/lookup/" + subj_name + "#"
+								+ field + "\">(and " + Integer.toString(vals_list.size()-10)
+								+ " more...)</a>");
 				} else {
 					out.println("    " + field + ":");
-					for (String v : vals) {
-						out.println("        " + linkify(normalizeNewlines(v)));
+					while (vals.hasNext()) {
+						out.println("        " + linkify(normalizeNewlines(vals.next())));
 					}
 				}
 			}
