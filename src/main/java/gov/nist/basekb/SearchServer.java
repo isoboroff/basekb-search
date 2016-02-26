@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
@@ -128,6 +129,15 @@ public class SearchServer {
 		out.println("    " + getFirstEnglishValue(doc, "rs_label"));
 		out.println("    " + getFirstEnglishValue(doc, "f_common.topic.description"));
 	}
+
+	public static class Comparators {
+		public static final Comparator<HashMap<String, String>> SCORE =
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> Double.compare(Double.parseDouble(d1.get("score")), Double.parseDouble(d2.get("score")));
+		public static final Comparator<HashMap<String, String>> PRBIN =
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> Short.compare(Short.parseShort(d1.get("pr_bin")), Short.parseShort(d2.get("pr_bin")));
+		public static final Comparator<HashMap<String, String>> PR_BIN_SCORE =
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> PRBIN.thenComparing(SCORE).compare(d1, d2);
+	}
 	
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
@@ -225,9 +235,11 @@ public class SearchServer {
 					dmap.put("types", joiner.join(doc.getValues("r_type")));
 					dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
 					dmap.put("pr_bin", doc.get("pr_bin"));
+					dmap.put("score", Double.toString(hits[i].score));
 					disp_docs.add(dmap);
 				}
 
+				Collections.sort(disp_docs, Comparators.PR_BIN_SCORE);
 				bufw.getBuffer().setLength(0);
 				serp_template.evaluate(bufw, context);
 				return bufw.toString();

@@ -34,8 +34,10 @@
 	    <div class="col-xs-12 col-sm-12 col-md-3">
 	      <ul class="meta-search">
 		<li><i class="glyphicon
-		glyphicon-search"></i> <span>{{ loop.index + 1 }}: {{ hits[loop.index].doc }}</span></li>
-		<li><i class="glyphicon glyphicon-signal"></i> <span>{{ hits[loop.index].score }}</span></li>
+		glyphicon-search"></i> <span>{{ loop.index + 1 }}</span></li>
+		<li><i class="glyphicon
+		glyphicon-signal"></i> <span>{{ doc.score }} / {{
+		doc.pr_bin }}</span></li>
 		<li><i class="glyphicon glyphicon-tags"></i> <span class="small">{{ doc.types }}</span></li>
 	      </ul>
 	    </div>
