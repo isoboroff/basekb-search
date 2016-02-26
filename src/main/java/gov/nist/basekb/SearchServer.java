@@ -139,9 +139,12 @@ public class SearchServer {
 		public static final Comparator<HashMap<String, String>> PRBIN =
 			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
 			String zero = "0";
-			int foo = Integer.parseInt(zero);
-			int i1 = Integer.parseInt(d1.getOrDefault("pr_bin", zero));
-			int i2 = Integer.parseInt(d2.getOrDefault("pr_bin", zero));
+			String pr1 = d1.getOrDefault("pr_bin", zero);
+			String pr2 = d2.getOrDefault("pr_bin", zero);
+			if (pr1 == null || pr2 == null)
+				System.err.println("wtf?!?" + pr1 + pr2);
+			int i1 = Integer.parseInt(pr1);
+			int i2 = Integer.parseInt(pr2);
 			return Integer.compare(i1, i2);
 		};
 		public static final Comparator<HashMap<String, String>> PR_BIN_SCORE =
