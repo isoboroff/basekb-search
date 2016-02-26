@@ -132,11 +132,20 @@ public class SearchServer {
 
 	public static class Comparators {
 		public static final Comparator<HashMap<String, String>> SCORE =
-			(HashMap<String, String> d1, HashMap<String, String> d2) -> Double.compare(Double.parseDouble(d1.getOrDefault("score", "0.0")), Double.parseDouble(d2.getOrDefault("score", "0.0")));
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
+			return Double.compare(Double.parseDouble(d1.getOrDefault("score", "0.0")),
+						   Double.parseDouble(d2.getOrDefault("score", "0.0")));
+		};
 		public static final Comparator<HashMap<String, String>> PRBIN =
-			(HashMap<String, String> d1, HashMap<String, String> d2) -> Integer.compare(Integer.parseInt(d1.getOrDefault("pr_bin", "0")), Integer.parseInt(d2.getOrDefault("pr_bin", "0")));
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
+			int i1 = Integer.parseInt(d1.getOrDefault("pr_bin", "0"));
+			int i2 = Integer.parseInt(d2.getOrDefault("pr_bin", "0"));
+			return Integer.compare(i1, i2);
+		};
 		public static final Comparator<HashMap<String, String>> PR_BIN_SCORE =
-			(HashMap<String, String> d1, HashMap<String, String> d2) -> PRBIN.thenComparing(SCORE).compare(d1, d2);
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
+			return PRBIN.thenComparing(SCORE).compare(d1, d2);
+		};
 	}
 	
     public static void main(String[] args) {
