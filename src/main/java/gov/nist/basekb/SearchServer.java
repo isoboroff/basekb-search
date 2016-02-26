@@ -132,7 +132,7 @@ public class SearchServer {
 
 	public static class Comparators {
 		public static final Comparator<HashMap<String, String>> SCORE =
-			(HashMap<String, String> d1, HashMap<String, String> d2) -> Double.compare(Double.parseDouble(d1.get("score")), Double.parseDouble(d2.get("score")));
+			(HashMap<String, String> d1, HashMap<String, String> d2) -> Double.compare(Double.parseDouble(d1.getOrDefault("score", "0.0")), Double.parseDouble(d2.getOrDefault("score", "0.0")));
 		public static final Comparator<HashMap<String, String>> PRBIN =
 			(HashMap<String, String> d1, HashMap<String, String> d2) -> Integer.compare(Integer.parseInt(d1.getOrDefault("pr_bin", "0")), Integer.parseInt(d2.getOrDefault("pr_bin", "0")));
 		public static final Comparator<HashMap<String, String>> PR_BIN_SCORE =
