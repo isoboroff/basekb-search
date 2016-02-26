@@ -131,6 +131,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexReader;
@@ -275,6 +276,7 @@ public class FreebaseTools {
     public static final String VALUE_TYPE_URI    = "URI";
     public static final String VALUE_TYPE_STRING = "STRING";
     public static final String VALUE_TYPE_TEXT   = "TEXT";
+    public static final String VALUE_TYPE_INT    = "INT";
     public static final String VALUE_TYPE_OTHER  = "OTHER";
 
 
@@ -708,6 +710,9 @@ public class FreebaseTools {
     public String getValueType(String value) {
         // Determine the type of this N-Triples `value'.
         char first = value.charAt(0);
+		if (Character.isDigit(first)) {
+			return VALUE_TYPE_INT;
+		}
         switch (first) {
         case '<': return VALUE_TYPE_URI;
         case '"':
@@ -851,6 +856,8 @@ public class FreebaseTools {
                     if (valueType == VALUE_TYPE_URI)
                         // treat URI elements as atomic strings (e.g., types):
                         doc.add(new StringField(predicate, value, Field.Store.YES));
+					else if (valueType == VALUE_TYPE_INT)
+						doc.add(new NumericDocValuesField(predicate, Long.parseLong(value)));
                     else {
                         // all others, run through the analyzer:
                         String lang = indexLanguage ? getValueLanguage(value) : null;

@@ -47,6 +47,9 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SortedNumericSortField;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
@@ -191,8 +194,10 @@ public class SearchServer {
 				tools.getIndexAnalyzer();
 				Query q = new QueryParser(tools.getDefaultSearchField(),
 										  tools.getIndexAnalyzer()).parse(req.queryParams("q"));
+				SortField longSort = new SortedNumericSortField("pr_bin", SortField.Type.LONG, true);
+				Sort sort = new Sort(longSort);
 
-				TopDocs results = tools.getIndexSearcher().search(q, 100);
+				TopDocs results = tools.getIndexSearcher().search(q, 100, sort);
 				ScoreDoc[] hits = results.scoreDocs;
 				int numTotalHits = results.totalHits;
 				ArrayList<HashMap<String, String>> disp_docs = new ArrayList(hits.length);
