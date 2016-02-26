@@ -194,10 +194,14 @@ public class SearchServer {
 				tools.getIndexAnalyzer();
 				Query q = new QueryParser(tools.getDefaultSearchField(),
 										  tools.getIndexAnalyzer()).parse(req.queryParams("q"));
-				SortField longSort = new SortedNumericSortField("pr_bin", SortField.Type.LONG, true);
-				Sort sort = new Sort(longSort);
 
-				TopDocs results = tools.getIndexSearcher().search(q, 100, sort);
+				// Attempt 1 at integrating Pagerank bins.  This appears to cause sorting on docid when
+				// pr_bin is absent, unclear how it interacts with scoring
+				// SortField longSort = new SortedNumericSortField("pr_bin", SortField.Type.LONG, true);
+				// Sort sort = new Sort(longSort);
+				// TopDocs results = tools.getIndexSearcher().search(q, 100, sort);
+
+				TopDocs results = tools.getIndexSearcher().search(q, 100);
 				ScoreDoc[] hits = results.scoreDocs;
 				int numTotalHits = results.totalHits;
 				ArrayList<HashMap<String, String>> disp_docs = new ArrayList(hits.length);
@@ -220,6 +224,7 @@ public class SearchServer {
 					dmap.put("subject", doc.get("subject"));
 					dmap.put("types", joiner.join(doc.getValues("r_type")));
 					dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
+					dmap.put("pr_bin", doc.get("pr_bin"));
 					disp_docs.add(dmap);
 				}
 

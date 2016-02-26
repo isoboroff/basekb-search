@@ -131,7 +131,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexReader;
@@ -857,7 +857,7 @@ public class FreebaseTools {
                         // treat URI elements as atomic strings (e.g., types):
                         doc.add(new StringField(predicate, value, Field.Store.YES));
 					else if (valueType == VALUE_TYPE_INT)
-						doc.add(new NumericDocValuesField(predicate, Long.parseLong(value)));
+						doc.add(new SortedNumericDocValuesField(predicate, Long.parseLong(value)));
                     else {
                         // all others, run through the analyzer:
                         String lang = indexLanguage ? getValueLanguage(value) : null;
