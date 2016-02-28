@@ -48,6 +48,8 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.SortedNumericSortField;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.Sort;
@@ -216,8 +218,17 @@ public class SearchServer {
 				StringWriter bufw = new StringWriter();
 				tools.getIndexSearcher();
 				tools.getIndexAnalyzer();
-				Query q = new QueryParser(tools.getDefaultSearchField(),
-										  tools.getIndexAnalyzer()).parse(req.queryParams("q"));
+				String qstring = req.queryParams("q");
+				QueryParser qps = new QueryParser(tools.getDefaultSearchField(), tools.getIndexAnalyzer());
+				
+				Query q = qps.parse(qstring);
+				if (!qstring.matches("[\"+()-]")) {
+					// plain string query; expand with a phrase
+					BooleanQuery.Builder bb = new BooleanQuery.Builder();
+					bb.add(q, BooleanClause.Occur.SHOULD);
+					bb.add(qps.parse("\"" + qstring + "\""), BooleanClause.Occur.SHOULD);
+					q = bb.build();
+				}
 
 				// Attempt 1 at integrating Pagerank bins.  This appears to cause sorting on docid when
 				// pr_bin is absent, unclear how it interacts with scoring
