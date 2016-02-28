@@ -133,19 +133,19 @@ public class SearchServer {
 	public static class Comparators {
 		public static final Comparator<HashMap<String, String>> SCORE =
 			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
-			return Double.compare(Double.parseDouble(d1.getOrDefault("score", "0.0")),
-						   Double.parseDouble(d2.getOrDefault("score", "0.0")));
+			return Double.compare(Double.parseDouble(d2.getOrDefault("score", "0.0")),
+						   Double.parseDouble(d1.getOrDefault("score", "0.0")));
 		};
 		public static final Comparator<HashMap<String, String>> PRBIN =
 			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
-			String zero = "0";
-			String pr1 = d1.getOrDefault("pr_bin", zero);
-			String pr2 = d2.getOrDefault("pr_bin", zero);
-			if (pr1 == null || pr2 == null)
-				System.err.println("wtf?!?" + pr1 + pr2);
-			int i1 = Integer.parseInt(pr1);
-			int i2 = Integer.parseInt(pr2);
-			return Integer.compare(i1, i2);
+			int i1 = 0, i2 = 0;
+			String pr1 = d1.get("pr_bin");
+			if (pr1 != null)
+				i1 = Integer.parseInt(pr1);
+			String pr2 = d2.get("pr_bin");
+			if (pr2 != null)
+				i2 = Integer.parseInt(pr2);
+			return Integer.compare(i2, i1);
 		};
 		public static final Comparator<HashMap<String, String>> PR_BIN_SCORE =
 			(HashMap<String, String> d1, HashMap<String, String> d2) -> {
@@ -248,7 +248,10 @@ public class SearchServer {
 					dmap.put("subject", doc.get("subject"));
 					dmap.put("types", joiner.join(doc.getValues("r_type")));
 					dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
-					dmap.put("pr_bin", doc.get("pr_bin"));
+					String pr = doc.get("pr_bin");
+					if (pr == null)
+						pr = "0";
+					dmap.put("pr_bin", pr);
 					dmap.put("score", Double.toString(hits[i].score));
 					disp_docs.add(dmap);
 				}
