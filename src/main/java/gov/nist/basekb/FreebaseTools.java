@@ -128,9 +128,9 @@ import org.apache.lucene.codecs.lucene54.Lucene54Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DocumentStoredFieldVisitor;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexableField;
@@ -575,7 +575,7 @@ public class FreebaseTools {
             String defaultAnalyzerName = getConfig("LUCENE_INDEX_ANALYZER_DEFAULT");
             if (defaultAnalyzerName == null)
                 defaultAnalyzerName = "org.apache.lucene.analysis.standard.StandardAnalyzer";
-            defaultIndexAnalyzer = (Analyzer)Class.forName(defaultAnalyzerName).newInstance();
+            defaultIndexAnalyzer = new SafetyAnalyzer((Analyzer)Class.forName(defaultAnalyzerName).newInstance());
         }
         return defaultIndexAnalyzer;
     }
@@ -672,7 +672,7 @@ public class FreebaseTools {
                 if (! lang.equals("default")) {
                     // record language as a supported language as a side effect:
                     supportedLanguages.add(normalizeLanguage(lang));
-                    Analyzer langAnalyzer = (Analyzer)Class.forName(value).newInstance();
+                    Analyzer langAnalyzer = new SafetyAnalyzer((Analyzer)Class.forName(value).newInstance());
                     for (String pred : indexedPreds) {
                         String langPred = languageQualifiedPredicate(pred, lang);
                         fieldAnalyzers.put(langPred, langAnalyzer);
@@ -844,6 +844,12 @@ public class FreebaseTools {
         //printlnDbg("DBG: indexRecord: " + subject);
         doc.add(subjField);
 
+		FieldType VectorField = new FieldType(StringField.TYPE_STORED);
+		VectorField.setStoreTermVectors(true);
+
+		FieldType TokVectorField = new FieldType(TextField.TYPE_STORED);
+		TokVectorField.setStoreTermVectors(true);
+		
         for (Map.Entry<String, List<String>> entry : predValues.entrySet()) {
             String predicate = normalizeUri(entry.getKey());
             List<String> values = entry.getValue();
@@ -855,7 +861,7 @@ public class FreebaseTools {
                 if (isIndexedPredicate(predicate)) {
                     if (valueType == VALUE_TYPE_URI)
                         // treat URI elements as atomic strings (e.g., types):
-                        doc.add(new StringField(predicate, value, Field.Store.YES));
+                        doc.add(new Field(predicate, value, VectorField));
 					else if (valueType == VALUE_TYPE_INT)
 						doc.add(new SortedNumericDocValuesField(predicate, Long.parseLong(value)));
                     else {
@@ -864,27 +870,27 @@ public class FreebaseTools {
                         if (indexLanguage && lang != null && (isSupportedLanguage(lang) || isSupportedLanguage(getLanguageRoot(lang)))) {
                             // multi-lingual indexing: if we have a supported language, we store the field
                             // and then add an index entry with the language-qualified predicate:
-                            doc.add(new StoredField(predicate, value));
+                            doc.add(new Field(predicate, value, VectorField));
                             if (indexPredicates)
-                                doc.add(new TextField(languageQualifiedPredicate(predicate, lang), value, Field.Store.NO));
+                                doc.add(new Field(languageQualifiedPredicate(predicate, lang), value, TokVectorField));
                             if (indexText)
-                                doc.add(new TextField(languageQualifiedPredicate(FIELD_NAME_TEXT, lang), value, Field.Store.NO));
+                                doc.add(new Field(languageQualifiedPredicate(FIELD_NAME_TEXT, lang), value, TokVectorField));
                         }
                         else {
                             // mono-lingual indexing or no language designation:
                             if (indexPredicates)
-                                doc.add(new TextField(predicate, value, Field.Store.YES));
+                                doc.add(new Field(predicate, value, TokVectorField));
                             if (indexText) {
-                                doc.add(new TextField(FIELD_NAME_TEXT, value, Field.Store.NO));
+                                doc.add(new Field(FIELD_NAME_TEXT, value, TokVectorField));
                                 // make sure we store the triple if it wasn't already:
                                 if (! indexPredicates)
-                                    doc.add(new StoredField(predicate, value));
+                                    doc.add(new Field(predicate, value, VectorField));
                             }
                         }
                     }
                 }
                 else
-                    doc.add(new StoredField(predicate, value));
+                    doc.add(new Field(predicate, value, VectorField));
             }
         }
 
