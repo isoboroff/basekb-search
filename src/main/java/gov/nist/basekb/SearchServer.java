@@ -3,68 +3,25 @@
 package gov.nist.basekb;
 
 // Java:
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
-
-// Guava goodies
-import com.google.common.collect.Multimap;
-import com.google.common.collect.LinkedListMultimap;
 import com.google.common.base.Joiner;
-
-// Lucene:
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.DocumentStoredFieldVisitor;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.SortedNumericSortField;
-import org.apache.lucene.search.SortField;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-
-// Spark
-import static spark.Spark.*;
-
-// Pebble
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.*;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.*;
+
+import static spark.Spark.*;
+
+// Guava goodies
+// Lucene:
+// Spark
+// Pebble
 
 public class SearchServer {
 
@@ -158,15 +115,11 @@ public class SearchServer {
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
 		SearchServer srv = new SearchServer();
-        FreebaseTools tools = new FreebaseTools(args);
+        FreebaseTools tools = new FreebaseTools();
 		EntityRenderer abbrev = new EntityTypeRenderer(tools);
 		LongFormRenderer full = new LongFormRenderer();
 		
         try {
-            if (tools.showVersion) {
-                System.err.println(tools.versionString);
-                System.exit(0);
-            }
             if (tools.showDebug) {
                 tools.printLog("DBG: cmdline args:");
                 for (String arg : args)
