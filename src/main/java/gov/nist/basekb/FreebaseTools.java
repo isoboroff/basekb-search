@@ -219,6 +219,7 @@ public class FreebaseTools {
     public FreebaseTools(String config_filename) {
         configFile = config_filename;
         readConfig();
+        setCachedConfigVars();
     }
 
        //

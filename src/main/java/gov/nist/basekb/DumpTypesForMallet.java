@@ -1,10 +1,13 @@
 package gov.nist.basekb;
 
-import com.google.common.collect.HashMultimap;
+import com.google.common.base.Joiner;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -60,10 +63,6 @@ public class DumpTypesForMallet {
     public void load() throws Exception {
         BufferedReader in = new BufferedReader(new FileReader(qrels_file));
         String line = null;
-        QueryParser qps = new QueryParser(FreebaseTools.FIELD_NAME_SUBJECT, tools.getIndexAnalyzer());
-        IndexSearcher searcher = tools.getIndexSearcher();
-        IndexReader reader = tools.getIndexReader();
-        HashMultimap<String, String> typemap = HashMultimap.create();
 
         while ((line = in.readLine()) != null) {
             String[] fields = line.split("\t");
@@ -84,6 +83,26 @@ public class DumpTypesForMallet {
                 System.out.print(" " + t);
             }
             System.out.println();
+        }
+
+        // OTHER crap
+        QueryParser qps = new QueryParser("r_type", tools.getIndexAnalyzer());
+        IndexSearcher searcher = tools.getIndexSearcher();
+        IndexReader reader = tools.getIndexReader();
+        Joiner join = Joiner.on(" ");
+        final String[] queries = {"f_type.content", "f_music.recording", "f_tv.tv_series_episode",
+                "f_music.album", "f_film.film", "f_time.event", "f_book.book", "f_award.award_nominated_work",
+                "f_fictional_universe.fictional_character", "f_media_common.cataloged_instance", "f_media_common.creative_work"};
+        for (String querystring : queries) {
+            Query q = qps.parse(querystring);
+            TopDocs td = searcher.search(q, 20);
+            ScoreDoc[] sd = td.scoreDocs;
+            for (ScoreDoc scoredoc : sd) {
+                Document d = tools.getDocumentInMode(scoredoc.doc);
+                String types = join.join(d.getValues("r_type"));
+                String name = tools.getSubjectName(d);
+                System.out.println(name + " OTHER " + types);
+            }
         }
     }
 
