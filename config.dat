@@ -1,6 +1,6 @@
 # Configuration options for scripts and FreebaseTools
 # Assumes FBT_HOME has been set in the calling script.
-setenv FBT_HOME      /Users/soboroff/basekb-search
+setenv FBT_HOME      /Users/soboroff/basekb/basekb-search
 setenv SORT_DIR      $FBT_HOME/sort
 
 # make sure this is set in your environment to your locale and UTF-8 or set it in here:
