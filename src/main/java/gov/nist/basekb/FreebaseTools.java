@@ -123,54 +123,27 @@ public class FreebaseTools {
 
     public static String versionString = "FreebaseTools 1.1.0";
 
-    public String configFile = "config.dat";
+    public String CONFIG_FILENAME = "config.dat";
+    public Properties CONFIG = null;
 
-    public String command = "lookup";
+    public boolean SHOW_DEBUG = false;
+    public boolean SHOW_PROGRESS = false;
+    public boolean INDEX_PREDICATES = true;
+    public boolean INDEX_TEXT = true;
+    public boolean INDEX_LANGUAGE = false;
+    public String TRIPLES_FILE = "";
+    public String INDEX_DIRECTORY_NAME = "";
 
-    // Config variables that are cached from the Properties file at instantiation time
-    public boolean showDebug = false;
-    public boolean showProgress = false;
-    public boolean indexPredicates = true;
-    public boolean indexText = true;
-    public boolean indexLanguage = false;
+    public String INDEXED_PREDS_FILE = "";
+    public boolean OPTIMIZE_INDEX = false;
+    public boolean INDEX_FULL_DATA = false;
+    public int MAX_HITS = 10;
 
+    public boolean NORMALIZE_NEWLINES = false;
+    public String PRINT_MODE = "all";
 
-    public Properties config = null;
-
-    void setDefaultConfig() {
-        config = new Properties();
-        config.put("triplesFile", "");
-        config.put("indexDirectoryName", "");
-
-        config.put("indexedPredsFile", "");
-        config.put("optimizeIndex", false) ;
-        config.put("indexFullData", false);
-
-        config.put("indexPredicates", true);
-        config.put("indexText", true);
-        config.put("indexLanguage", false);
-
-        config.put("normalizeNewlines", false);
-        config.put("queryString", "supercalifragilisticexpialidocious"); // 161 matching subjects
-        config.put("defaultSearchField", "");
-        config.put("maxHits", 10);
-        config.put("printMode", "all");
-        config.put("showProgress", false);
-        config.put("showDebug", false);
-        config.put("showVersion", false);
-        config.put("showUsage", false);
-
-        // If true, predicate chains will not loop back to their seeds:
-        config.put("suppressPredicateLoops", true);
-    }
-
-    void setCachedConfigVars() {
-        showDebug = (Boolean)config.get("showDebug");
-        showProgress = (Boolean)config.get("showProgress");
-        indexPredicates = (Boolean)config.get("indexPredicates");
-        indexText = (Boolean)config.get("indexText");
-        indexLanguage = (Boolean)config.get("indexLanguage");
-    }
+    // If true, predicate chains will not loop back to their seeds:
+    public boolean SUPPRESS_PREDICATE_LOOPS = true;
 
     String getIndexedPredsFile() {
         String indexedPredsFile = getConfig("LUCENE_INDEXED_PREDS");
@@ -207,19 +180,11 @@ public class FreebaseTools {
     public FreebaseTools() {
         // Use this to construct a tools instance and explicitly set configuration variables.
         super();
-        setDefaultConfig();
-        setCachedConfigVars();
-    }
-
-    public FreebaseTools(Properties config) {
-        this.config = config;
-        setCachedConfigVars();
     }
 
     public FreebaseTools(String config_filename) {
-        configFile = config_filename;
+        CONFIG_FILENAME = config_filename;
         readConfig();
-        setCachedConfigVars();
     }
 
        //
@@ -246,17 +211,17 @@ public class FreebaseTools {
     }
 
     public void printlnDbg(String x) {
-        if (showDebug)
+        if (SHOW_DEBUG)
             log.println(x);
     }
 
     public void printlnProg(String x) {
-        if (showProgress)
+        if (SHOW_PROGRESS)
             log.println(x);
     }
 
     public void showProgress(long count, int defaultInterval) {
-        if (showProgress && ((count % defaultInterval) == 0)) {
+        if (SHOW_PROGRESS && ((count % defaultInterval) == 0)) {
             log.print(".");
             log.flush();
         }
@@ -311,12 +276,12 @@ public class FreebaseTools {
     }
 
     public void readConfig(String fbtHome) {
-        if (config == null)
-            config = new Properties();
+        if (CONFIG == null)
+            CONFIG = new Properties();
 
         // Read the FBT config.dat which is assumed to use shell variable syntax.
         try {
-            List<String> configLines = readListFile(configFile);
+            List<String> configLines = readListFile(CONFIG_FILENAME);
 
             Pattern vardef = Pattern.compile("^setenv\\s+(\\S+)\\s+(.*)");
             Matcher matcher = vardef.matcher("");
@@ -327,12 +292,12 @@ public class FreebaseTools {
                     String property = matcher.group(1);
                     String value = matcher.group(2);
                     value = value.replace("$FBT_HOME", fbtHome);
-                    config.setProperty(property, value);
+                    CONFIG.setProperty(property, value);
                 }
             }
         }
         catch (Exception e) {
-            log.println("WARN: problem reading config file `" + configFile + "': " + e.getMessage());
+            log.println("WARN: problem reading config file `" + CONFIG_FILENAME + "': " + e.getMessage());
             e.printStackTrace(log);
         }
 
@@ -340,11 +305,11 @@ public class FreebaseTools {
 
     public String getConfig(String property) {
         // Get the configuration value for `property', or null if none is defined.
-        if (config == null) {
-            config = new Properties();
+        if (CONFIG == null) {
+            CONFIG = new Properties();
             readConfig();
         }
-        return config.getProperty(property);
+        return CONFIG.getProperty(property);
     }
 
 
@@ -360,12 +325,10 @@ public class FreebaseTools {
 
     public String getIndexDirectoryName() throws IOException {
         // Either return the provided directory or derive one based on `triplesFile'.
-        String indexDirectoryName = config.getProperty("indexDirectoryName");
-        String triplesFile = config.getProperty("triplesFile");
-        if (! indexDirectoryName.equals(""))
-            return indexDirectoryName;
-        else if (! triplesFile.equals(""))
-            return triplesFile + ".lucene.index";
+        if (! INDEX_DIRECTORY_NAME.equals(""))
+            return INDEX_DIRECTORY_NAME;
+        else if (! TRIPLES_FILE.equals(""))
+            return TRIPLES_FILE + ".lucene.index";
         else
             throw new IOException("Cannot determine Lucene index directory, supply via -i");
     }
@@ -397,13 +360,13 @@ public class FreebaseTools {
         indexWriter = new IndexWriter(indexDirectory, iwc);
         indexAnalyzer = getIndexAnalyzer();
 
-        if (indexPredicates) printlnProg("Indexing individual predicates");
-        if (indexText) printlnProg("Indexing combined predicate text values");
-        if (indexLanguage) printlnProg("Indexing predicates for language(s): " + supportedLanguages);
+        if (INDEX_PREDICATES) printlnProg("Indexing individual predicates");
+        if (INDEX_TEXT) printlnProg("Indexing combined predicate text values");
+        if (INDEX_LANGUAGE) printlnProg("Indexing predicates for language(s): " + supportedLanguages);
     }
 
     public void finalizeIndexBuilder() throws IOException {
-        if ((Boolean)config.get("optimizeIndex")) {
+        if (OPTIMIZE_INDEX) {
             // To maximize search performance, we call forceMerge here (slow), but since we
             // are dealing with a totally static index, the cost should generally be worth it:
             printlnProg("Optimizing index...");
@@ -457,8 +420,8 @@ public class FreebaseTools {
             Map<String, Analyzer> analyzersMap = createFieldAnalyzersMap();
             // if we use default indexing options, determine language indexing based on the configuration:
             if (supportedLanguages.size() > 0)
-                config.put("indexLanguage", true);
-            if ((Boolean)config.get("indexLanguage"))
+                INDEX_LANGUAGE = true;
+            if (INDEX_LANGUAGE)
                 indexAnalyzer = new PerFieldAnalyzerWrapper(getDefaultIndexAnalyzer(), analyzersMap);
             else
                 indexAnalyzer = getDefaultIndexAnalyzer();
@@ -535,9 +498,9 @@ public class FreebaseTools {
         if (indexedPreds == null)
             initializeIndexedPreds();
         printlnDbg("DBG: field analyzers:");
-        for (String key : config.stringPropertyNames()) {
+        for (String key : CONFIG.stringPropertyNames()) {
             if (key.startsWith(analyzerPrefix)) {
-                String value = (String) config.getProperty(key);
+                String value = (String) CONFIG.getProperty(key);
                 String lang = key.substring(analyzerPrefix.length()).toLowerCase().replace('_', '-');
                 if (! lang.equals("default")) {
                     // record language as a supported language as a side effect:
@@ -612,7 +575,7 @@ public class FreebaseTools {
     }
 
     public String normalizeNewlines(String value) {
-        if ((Boolean)config.get("normalizeNewlines"))
+        if (NORMALIZE_NEWLINES)
             // this does't copy and returns `value' if it didn't contain a newline:
             return value.replace('\n', ' ');
         else
@@ -654,14 +617,13 @@ public class FreebaseTools {
         // directly from the index without having to go to a separate database.
         // Lucene stored field compression will provide good compression and access speed.
 
-        String triplesFile = config.getProperty("triplesFile");
-        BufferedReader in = openTextFile(triplesFile);
+        BufferedReader in = openTextFile(TRIPLES_FILE);
 
         String line = null;
         String[] triple;
         String subject = "";
         long count = 0;
-        long maxTriples = (Boolean)config.get("indexFullData") ? Long.MAX_VALUE : 20000000;
+        long maxTriples = INDEX_FULL_DATA ? Long.MAX_VALUE : 20000000;
 
         // this map collects values for each of a subject's predicates -
         // we use a TreeMap for per-subject predicate sorting:
@@ -734,27 +696,27 @@ public class FreebaseTools {
                         // treat URI elements as atomic strings (e.g., types):
                         doc.add(new Field(predicate, value, VectorField));
 					else if (valueType == VALUE_TYPE_INT)
-						doc.add(new SortedNumericDocValuesField(predicate, Long.parseLong(value)));
+						doc.add(new IntPoint(predicate, Integer.parseInt(value)));
                     else {
                         // all others, run through the analyzer:
-                        String lang = indexLanguage ? getValueLanguage(value) : null;
-                        if (indexLanguage && lang != null && (isSupportedLanguage(lang) || isSupportedLanguage(getLanguageRoot(lang)))) {
+                        String lang = INDEX_LANGUAGE ? getValueLanguage(value) : null;
+                        if (INDEX_LANGUAGE && lang != null && (isSupportedLanguage(lang) || isSupportedLanguage(getLanguageRoot(lang)))) {
                             // multi-lingual indexing: if we have a supported language, we store the field
                             // and then add an index entry with the language-qualified predicate:
                             doc.add(new Field(predicate, value, VectorField));
-                            if (indexPredicates)
+                            if (INDEX_PREDICATES)
                                 doc.add(new Field(languageQualifiedPredicate(predicate, lang), value, TokVectorField));
-                            if (indexText)
+                            if (INDEX_TEXT)
                                 doc.add(new Field(languageQualifiedPredicate(FIELD_NAME_TEXT, lang), value, TokVectorField));
                         }
                         else {
                             // mono-lingual indexing or no language designation:
-                            if (indexPredicates)
+                            if (INDEX_PREDICATES)
                                 doc.add(new Field(predicate, value, TokVectorField));
-                            if (indexText) {
+                            if (INDEX_TEXT) {
                                 doc.add(new Field(FIELD_NAME_TEXT, value, TokVectorField));
                                 // make sure we store the triple if it wasn't already:
-                                if (! indexPredicates)
+                                if (!INDEX_PREDICATES)
                                     doc.add(new Field(predicate, value, VectorField));
                             }
                         }
@@ -907,7 +869,7 @@ public class FreebaseTools {
 
     public void printPredicateChain(String subjectUri, float score, String[] predicateChain, int start, List<String> row, PrintWriter out) throws IOException {
         // Helper for `printSubjectPredicates' to print the tail of a predicate chain.
-        if ((Boolean)config.get("suppressPredicateLoops") && row.contains(subjectUri))
+        if (SUPPRESS_PREDICATE_LOOPS && row.contains(subjectUri))
             // don't print value chains that lead back to an earlier seed value:
             return;
         pushValueRow(row, subjectUri);
@@ -971,7 +933,7 @@ public class FreebaseTools {
 
     public String[][] getPrintModePredicates() {
         if (printModePredicates == null) {
-            String[] preds = parsePredicateList(config.getProperty("printMode"));
+            String[] preds = parsePredicateList(PRINT_MODE);
             printModePredicates = new String[preds.length][];
             for (int i = 0; i < preds.length; i++)
                 printModePredicates[i] = parsePredicateChain(preds[i]);
@@ -982,7 +944,7 @@ public class FreebaseTools {
     HashSet<String> printModeFields = null;  // list of fields to restrict Document access to, only used for top-level queries
 
     public Set<String> getPrintModeFields() {
-        if ((printModeFields == null) && PRINT_MODE_ALL.equals(config.getProperty("printMode")))
+        if ((printModeFields == null) && PRINT_MODE_ALL.equals(PRINT_MODE))
             return null;
         else if (printModeFields == null) {
             printModeFields = new HashSet<String>(Arrays.asList(FIELD_NAME_SUBJECT));
@@ -1020,7 +982,7 @@ public class FreebaseTools {
     public void doIndexTriples() {
         // Implements `index' command.
         try {
-            if (! (Boolean)config.get("indexFullData"))
+            if (! INDEX_FULL_DATA)
                 printlnLog("INFO: Running in test mode with 20M triples, use -f to index all the data");
             initializeIndexBuilder();
             indexTriples();
@@ -1032,7 +994,7 @@ public class FreebaseTools {
         }
     }
 
-    public void doLookup() {
+    public void doLookup(String queryString) {
         try {
             long timeSetup = 0;
             long timeQuery = 0;
@@ -1045,11 +1007,10 @@ public class FreebaseTools {
             timeSetup += (java.lang.System.currentTimeMillis() - timeStart);
 
             int blockSize = 1000;
-            String queryString = config.getProperty("queryString");
             BufferedReader in = queryString.equals("-") ? new BufferedReader(new InputStreamReader(System.in)) : null;
             List<String> subjects = (in != null) ? readList(in, blockSize) : Arrays.asList(parsePredicateList(queryString));
             PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))); // Java I/O API is insane
-            boolean fullDisplay = PRINT_MODE_ALL.equals(config.getProperty("printMode"));
+            boolean fullDisplay = PRINT_MODE_ALL.equals(PRINT_MODE);
 
             while (true) {
                 for (String subject : subjects) {
@@ -1064,7 +1025,7 @@ public class FreebaseTools {
                         Document doc = getDocumentInMode(docid);
                         timeQuery += (java.lang.System.currentTimeMillis() - timeStart);
                         timeStart = java.lang.System.currentTimeMillis();
-                        printSubjectInMode(doc, -1, config.getProperty("printMode"), out);
+                        printSubjectInMode(doc, -1, PRINT_MODE, out);
                         if (fullDisplay)
                             out.println();
                         timeDisplay += (java.lang.System.currentTimeMillis() - timeStart);
@@ -1086,13 +1047,12 @@ public class FreebaseTools {
         }
     }
 
-    public void doSearch() {
+    public void doSearch(String queryString) {
         try {
             long timeSetup = 0;
             long timeQuery = 0;
             long timeDisplay = 0;
-            String queryString = config.getProperty("queryString");
-            int maxHits = Integer.parseInt(config.getProperty("maxHits"));
+            int maxHits = MAX_HITS;
 
             // force index initialization, so we get a better sense of the actual query execution time:
             printlnProg("Loading index...");
@@ -1125,15 +1085,15 @@ public class FreebaseTools {
             printlnProg("Printing results...");
             PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))); // Java I/O API is insane
             int end = Math.min(hits.length, nDocs);
-            boolean fullDisplay = PRINT_MODE_ALL.equals(config.getProperty("printMode"));
+            boolean fullDisplay = PRINT_MODE_ALL.equals(PRINT_MODE);
 
             for (int i = 0; i < end; i++) {
                 // this takes about 90s for 3M subjects names, so not super fast but ok (0.03ms per subject)
                 int docid = hits[i].doc;
                 float score = allResults ? -1.0f : hits[i].score;
                 Document doc = getDocumentInMode(docid);
-                printSubjectInMode(doc, score, config.getProperty("printMode"), out);
-                if (showDebug) out.flush();
+                printSubjectInMode(doc, score, PRINT_MODE, out);
+                if (SHOW_DEBUG) out.flush();
                 printlnDbg("DBG: score explanation: " + getIndexSearcher().explain(query, docid).toString());
                 if (fullDisplay)
                     out.println();
@@ -1153,7 +1113,7 @@ public class FreebaseTools {
     public void readCompressedTriples () throws IOException {
         // Test driver to check reading performance: this reads and counts 878M lines in 7m:40s which is
         // fairly comparable to the 5m:40s it takes with `zcat <file> | wc'.
-        String triplesFile = config.getProperty("triplesFile");
+        String triplesFile = TRIPLES_FILE;
         BufferedReader in = openTextFile(triplesFile);
         String line = null;
         long count = 0;

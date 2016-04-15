@@ -237,24 +237,24 @@ public class FreebaseToolsRunner {
                 System.err.println(versionString);
                 System.exit(0);
             }
-            if (tools.showDebug) {
+            if (tools.SHOW_DEBUG) {
                 tools.printLog("DBG: cmdline args:");
                 for (String arg : args)
                     tools.printLog(" " + arg);
                 tools.printlnLog();
                 tools.getConfig("dummy");
                 tools.printlnLog("DBG: configuration:");
-                for (Map.Entry<Object, Object> entry : tools.config.entrySet())
+                for (Map.Entry<Object, Object> entry : tools.CONFIG.entrySet())
                     tools.printlnLog("DBG:    " + entry.getKey() + "=" + entry.getValue());
             }
-            if (tools.command.equals(COMMAND_INDEX)) {
+            if (runner.command.equals(COMMAND_INDEX)) {
                 tools.doIndexTriples();
-            } else if (tools.command.equals(COMMAND_LOOKUP)) {
-                tools.doLookup();
-            } else if (tools.command.equals(COMMAND_SEARCH)) {
-                tools.doSearch();
+            } else if (runner.command.equals(COMMAND_LOOKUP)) {
+                tools.doLookup(runner.queryString);
+            } else if (runner.command.equals(COMMAND_SEARCH)) {
+                tools.doSearch(runner.queryString);
             } else
-                throw new IOException("Illegal command: " + tools.command);
+                throw new IOException("Illegal command: " + runner.command);
             System.exit(0);
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
