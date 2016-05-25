@@ -53,7 +53,7 @@ public class DumpTypes {
             System.exit(1);
         }
 
-        tools.config.setProperty("indexDirectoryName", index_location);
+        tools.INDEX_DIRECTORY_NAME = index_location;
     }
 
 

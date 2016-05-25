@@ -109,6 +109,10 @@ public class FreebaseToolsRunner {
 
     public static String versionString = "FreebaseTools 2.0";
 
+    @Option(name = "-H", aliases = {"--home"}, required = false,
+            usage = "Home directory where configuration files are found")
+    public String homeDirectory = ".";
+
     @Option(name = "-C", aliases = {"--config-file"}, required = false,
             usage = "Configuration file to load, default is `config.dat'")
     public String configFile = "config.dat";
@@ -164,7 +168,7 @@ public class FreebaseToolsRunner {
 
     @Option(name = "-s", aliases = {"--search-field"}, required = false,
             usage = "Default search field used by queries if a field is not explicitly specified, defaults to `rs_label'")
-    public String defaultSearchField = null;
+    public String defaultSearchField = "rs_label";
 
     @Option(name = "-m", aliases = {"--max-hits"}, required = false,
             usage = "Maximum number of `search' query results to generate, default is 10, use -1 to get all results")
@@ -197,6 +201,7 @@ public class FreebaseToolsRunner {
     public static final String COMMAND_LOOKUP = "lookup";
     public static final String COMMAND_SEARCH = "search";
 
+
     //
     ////// Top-level Constructors and Command Dispatch
     //
@@ -226,11 +231,30 @@ public class FreebaseToolsRunner {
         }
     }
 
+    public void configureTools(FreebaseTools tools) {
+        tools.FREEBASE_TOOLS_HOME = homeDirectory;
+        tools.TRIPLES_FILE = triplesFile;
+        tools.INDEX_DIRECTORY_NAME = indexDirectoryName;
+        tools.INDEXED_PREDS_FILE = indexedPredsFile;
+        tools.OPTIMIZE_INDEX = optimizeIndex;
+        tools.INDEX_FULL_DATA = indexFullData;
+        tools.INDEX_PREDICATES = indexPredicates;
+        tools.INDEX_TEXT = indexText;
+        tools.INDEX_LANGUAGE = indexLanguage;
+        tools.NORMALIZE_NEWLINES = normalizeNewlines;
+        tools.DEFAULT_SEARCH_FIELD = defaultSearchField;
+        tools.MAX_HITS = maxHits;
+        tools.PRINT_MODE = printMode;
+        tools.SHOW_PROGRESS = showProgress;
+        tools.SHOW_DEBUG = showDebug;
+    }
 
     public static void main(String[] args) {
         // FreebaseTools main shell command dispatch.
         FreebaseToolsRunner runner = new FreebaseToolsRunner(args);
         FreebaseTools tools = new FreebaseTools(runner.configFile);
+
+        runner.configureTools(tools);
 
         try {
             if (runner.showVersion) {
@@ -242,7 +266,6 @@ public class FreebaseToolsRunner {
                 for (String arg : args)
                     tools.printLog(" " + arg);
                 tools.printlnLog();
-                tools.getConfig("dummy");
                 tools.printlnLog("DBG: configuration:");
                 for (Map.Entry<Object, Object> entry : tools.CONFIG.entrySet())
                     tools.printlnLog("DBG:    " + entry.getKey() + "=" + entry.getValue());

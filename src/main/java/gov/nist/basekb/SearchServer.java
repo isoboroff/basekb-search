@@ -13,8 +13,16 @@ import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.*;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.queries.function.FunctionValues;
+import org.apache.lucene.queries.function.docvalues.LongDocValues;
+import org.apache.lucene.queries.function.valuesource.LongFieldSource;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.mutable.MutableValue;
+import org.apache.lucene.util.mutable.MutableValueLong;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -38,10 +46,13 @@ public class SearchServer {
     public int server_port = 8080;
 
     @Option(name="-i", aliases={"--index"}, usage="Index location")
-    public String index_path = "/Users/soboroff/basekb/basekb-shrink-un-so-index.3";
+    public String index_path = "/Users/soboroff/basekb/basekb-index";
 
     @Option(name="-m", aliases={"--classifier"}, usage="MALLET classifier for entity types")
     public String classifier_path = "/Users/soboroff/basekb/basekb-search/enttype.classifier";
+
+    @Option(name="-d", aliases={"--search-depth"}, usage="Depth for first-pass search results")
+    public int search_depth = 1000;
 
     public static Map<String, String> docToMap(Document doc) {
         Map<String, String> m = new LinkedHashMap<>();
@@ -57,7 +68,7 @@ public class SearchServer {
     }
 
     public static void printSubjectVerbose(Document subject, float score, String indent,
-                                           FreebaseTools tools, PrintWriter out) throws IOException {
+                                           FreebaseSearcher tools, PrintWriter out) throws IOException {
         // Pretty-print everything we know about `subject' to `out'.
         // Annotate its `score' if it is non-negative.
         if (score >= 0.0)
@@ -66,7 +77,7 @@ public class SearchServer {
             out.println(tools.getSubjectName(subject) + ":");
         for (IndexableField field : subject.getFields()) {
             if (! tools.FIELD_NAME_SUBJECT.equals(field.name())) {
-                out.print(indent + field.name() + ": " + tools.normalizeNewlines(field.stringValue()));
+                out.print(indent + field.name() + ": " + tools.fbi.normalizeNewlines(field.stringValue()));
                 if (field.stringValue().startsWith("f_m.")) {
                     int docid = tools.getSubjectDocID(field.stringValue());
                     if (docid > 0) {
@@ -75,7 +86,7 @@ public class SearchServer {
                             if ((new_field.name().equals("rs_label") ||
                                     new_field.name().equals("f_type.object.name")) &&
                                     (new_field.stringValue().endsWith("@en"))) {
-                                out.print(" (" + tools.normalizeNewlines(new_field.stringValue()) + ")");
+                                out.print(" (" + tools.fbi.normalizeNewlines(new_field.stringValue()) + ")");
                                 break INNER;
                             }
                         }
@@ -152,13 +163,86 @@ public class SearchServer {
         return lab;
     }
 
+    public static class SafeLongFieldSource extends LongFieldSource {
+        public SafeLongFieldSource(String field) {
+            super(field);
+        }
+
+        protected NumericDocValues getNumericDocValues(LeafReaderContext readerContext, String field) throws IOException {
+            NumericDocValues ndv = readerContext.reader().getNumericDocValues(field);
+            if (ndv == null) {
+                ndv = new NumericDocValues() {
+                    @Override
+                    public long get(int docid) { return 1; }
+                };
+            }
+            return ndv;
+        }
+        protected Bits getDocsWithField(LeafReaderContext readerContext, String field) throws IOException {
+            Bits bits = readerContext.reader().getDocsWithField(field);
+            if (bits == null) {
+                bits = new Bits.MatchNoBits(1);
+            }
+            return bits;
+        }
+        @Override
+        public FunctionValues getValues(Map context, LeafReaderContext readerContext) throws IOException {
+            final NumericDocValues arr = getNumericDocValues(readerContext, field);
+            final Bits valid = getDocsWithField(readerContext, field);
+
+            return new LongDocValues(this) {
+                @Override
+                public long longVal(int doc) {
+                    return arr.get(doc);
+                }
+
+                @Override
+                public boolean exists(int doc) {
+                    return arr.get(doc) != 0 || valid.get(doc);
+                }
+
+                @Override
+                public Object objectVal(int doc) {
+                    return valid.get(doc) ? longToObject(arr.get(doc)) : null;
+                }
+
+                @Override
+                public String strVal(int doc) {
+                    return valid.get(doc) ? longToString(arr.get(doc)) : null;
+                }
+
+                @Override
+                protected long externalToLong(String extVal) {
+                    return SafeLongFieldSource.this.externalToLong(extVal);
+                }
+
+                @Override
+                public ValueFiller getValueFiller() {
+                    return new ValueFiller() {
+                        private final MutableValueLong mval = newMutableValueLong();
+
+                        @Override
+                        public MutableValue getValue() {
+                            return mval;
+                        }
+
+                        @Override
+                        public void fillValue(int doc) {
+                            mval.value = arr.get(doc);
+                            mval.exists = mval.value != 0 || valid.get(doc);
+                        }
+                    };
+                }
+
+            };
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         // FreebaseTools main shell command dispatch.
         SearchServer srv = new SearchServer(args);
-        FreebaseTools tools = new FreebaseTools();
-        tools.configFile = srv.config_file_path;
-        tools.readConfig();
-        tools.config.put("indexDirectoryName", srv.index_path);
+        FreebaseIndexer fbi = new FreebaseIndexer(srv.index_path);
+        FreebaseSearcher tools = new FreebaseSearcher(fbi);
 
         EntityRenderer abbrev = new EntityTypeRenderer(tools);
         LongFormRenderer full = new LongFormRenderer();
@@ -172,15 +256,12 @@ public class SearchServer {
         Pipe pipe = classifier.getInstancePipe();
 
         try {
-            if (tools.showDebug) {
-                tools.printLog("DBG: cmdline args:");
+            if (fbi.SHOW_DEBUG) {
+                fbi.printLog("DBG: cmdline args:");
                 for (String arg : args)
-                    tools.printLog(" " + arg);
-                tools.printlnLog();
-                tools.getConfig("dummy");
-                tools.printlnLog("DBG: configuration:");
-                for (Map.Entry<Object, Object> entry : tools.config.entrySet())
-                    tools.printlnLog("DBG:    " + entry.getKey() + "=" + entry.getValue());
+                    fbi.printLog(" " + arg);
+                fbi.printlnLog();
+                fbi.printlnLog("DBG: configuration:");
             }
 
             staticFileLocation("/public");
@@ -219,29 +300,12 @@ public class SearchServer {
 
             PebbleTemplate serp_template = engine.getTemplate("templates/serp.peb");
             Joiner joiner = Joiner.on(", ");
+            Ranker r = new MultiFieldRanker(tools.getIndexSearcher(), fbi.getIndexAnalyzer(), srv.search_depth);
             get("/search", (req, res) -> {
                 StringWriter bufw = new StringWriter();
-                tools.getIndexSearcher();
-                tools.getIndexAnalyzer();
                 String qstring = req.queryParams("q");
-                QueryParser qps = new QueryParser(tools.getDefaultSearchField(), tools.getIndexAnalyzer());
 
-                Query q = qps.parse(qstring);
-                if (!qstring.matches("[\"+()-]")) {
-                    // plain string query; expand with a phrase
-                    BooleanQuery.Builder bb = new BooleanQuery.Builder();
-                    bb.add(q, BooleanClause.Occur.SHOULD);
-                    bb.add(qps.parse("\"" + qstring + "\""), BooleanClause.Occur.SHOULD);
-                    q = bb.build();
-                }
-
-                // Attempt 1 at integrating Pagerank bins.  This appears to cause sorting on docid when
-                // pr_bin is absent, unclear how it interacts with scoring
-                // SortField longSort = new SortedNumericSortField("pr_bin", SortField.Type.LONG, true);
-                // Sort sort = new Sort(longSort);
-                // TopDocs results = tools.getIndexSearcher().search(q, 100, sort);
-
-                TopDocs results = tools.getIndexSearcher().search(q, 100);
+                TopDocs results = r.rank(qstring);
                 ScoreDoc[] hits = results.scoreDocs;
                 int numTotalHits = results.totalHits;
                 LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
@@ -291,7 +355,7 @@ public class SearchServer {
                 for (Map.Entry<String, ArrayList<HashMap<String, String>>> disp_pair : disp_docs.entrySet()) {
                     String this_type = disp_pair.getKey();
                     ArrayList this_dispdocs = disp_pair.getValue();
-                    Collections.sort(this_dispdocs, Comparators.PR_BIN_SCORE);
+                    Collections.sort(this_dispdocs, Comparators.SCORE);
                     if (first_nonzero_type_count == 0 && this_dispdocs.size() > 0) {
                         first_nonzero_type_count = this_dispdocs.size();
                         first_nonzero_type = this_type;

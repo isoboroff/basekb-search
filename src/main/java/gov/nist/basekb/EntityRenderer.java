@@ -1,22 +1,18 @@
 package gov.nist.basekb;
 
-import java.io.StringWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.List;
-import java.util.Iterator;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.HashMap;
-
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Multimap;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.ArrayListMultimap;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
    The basic Undeterred prints entities out using the basic output formats from Forecastles
@@ -27,12 +23,12 @@ public class EntityRenderer {
     public static final String FIELD_NAME_TEXT    = "text";
 	public LinkedHashSet<String> field_priority = new LinkedHashSet();
 	public String type_match = null;
-	public FreebaseTools tools = null;
+	public FreebaseSearcher tools = null;
 	
 	
 	public EntityRenderer() {	}
 
-	public EntityRenderer(FreebaseTools fbt) {
+	public EntityRenderer(FreebaseSearcher fbt) {
 		tools = fbt;
 	}
 
