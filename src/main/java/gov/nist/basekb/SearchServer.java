@@ -242,6 +242,7 @@ public class SearchServer {
         // FreebaseTools main shell command dispatch.
         SearchServer srv = new SearchServer(args);
         FreebaseIndexer fbi = new FreebaseIndexer(srv.index_path);
+        fbi.INDEX_DIRECTORY_NAME = srv.index_path;
         FreebaseSearcher tools = new FreebaseSearcher(fbi);
 
         EntityRenderer abbrev = new EntityTypeRenderer(tools);
