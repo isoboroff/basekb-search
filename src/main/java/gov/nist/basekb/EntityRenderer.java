@@ -56,7 +56,7 @@ public class EntityRenderer {
 
 	public String linkify(String field_val) throws IOException {
 		if (field_val.startsWith("f_m.")) {
-			return "<a href=\"/lookup/" + field_val + "\">" + expand(field_val) + "</a>";
+			return "<a href=\"lookup/" + field_val + "\">" + expand(field_val) + "</a>";
 		} else {
 			return field_val;
 		}
@@ -96,7 +96,7 @@ public class EntityRenderer {
 			for (int i = 0; i < 10; i++) {
 				buf.append("        " + linkify(normalizeNewlines(vals.next())) + "\n");
 			}
-			buf.append("        <a href=\"/lookup/" + subject + "#"
+			buf.append("        <a href=\"lookup/" + subject + "#"
 					   + field + "\">(and " + Integer.toString(vals_coll.size()-10)
 					   + " more...)</a>\n");
 		} else {
