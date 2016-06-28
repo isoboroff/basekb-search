@@ -303,6 +303,7 @@ public class SearchServer {
             Joiner joiner = Joiner.on(", ");
             Ranker r = new MultiFieldRanker(tools.getIndexSearcher(), fbi.getIndexAnalyzer(), srv.search_depth);
             get("/search", (req, res) -> {
+                res.header("Content-Encoding", "gzip");
                 StringWriter bufw = new StringWriter();
                 String qstring = req.queryParams("q");
 
