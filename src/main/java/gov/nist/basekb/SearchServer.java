@@ -435,7 +435,7 @@ public class SearchServer {
                 context.put("first_type", first_nonzero_type);
                 
                 String contextJSON = mapper.writeValueAsString(context);                
-                
+                System.out.println(contextJSON+"\n");
                 try{
                 	mapper.writeValue(new File("/home/ram7/Desktop/test.json"), context);
                 } catch (Exception e){
