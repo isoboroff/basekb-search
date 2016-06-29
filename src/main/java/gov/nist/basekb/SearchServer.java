@@ -240,6 +240,71 @@ public class SearchServer {
             };
         }
     }
+    
+    public static void setupSearch(StringWriter bufw, Map<String, Object> context, String qstring, Ranker r, SearchServer srv, Classifier classifier, FreebaseSearcher tools, EntityRenderer abbrev, Joiner joiner)
+    {
+    	try{
+        TopDocs results = r.rank(qstring);
+        ScoreDoc[] hits = results.scoreDocs;
+        int numTotalHits = results.totalHits;
+        LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
+        String types[] = {"PER", "ORG", "GPE", "LOC", "FAC", "OTHER"};
+        for (String t : types) {
+            disp_docs.put(t, new ArrayList(hits.length));
+        }
+
+        context.put("query", qstring);
+        context.put("totalHits", numTotalHits);
+        context.put("hits", hits);
+        context.put("docs", disp_docs);
+
+        for (int i = 0; i < hits.length; i++) {
+            bufw.getBuffer().setLength(0);
+            int docid = hits[i].doc;
+            float score = hits[i].score;
+            Document doc = tools.getDocumentInMode(docid);
+
+            Labeling labs = srv.classify(doc, classifier);
+            String type = labs.getBestLabel().toString();
+            ArrayList<HashMap<String, String>> this_dispdocs = disp_docs.get(type);
+            if (this_dispdocs == null) {
+                this_dispdocs = new ArrayList<HashMap<String, String>>(hits.length);
+                disp_docs.put(type, this_dispdocs);
+            }
+
+            abbrev.render(doc, bufw, score);
+
+            HashMap<String, String> dmap = new HashMap();
+            dmap.put("text", bufw.toString());
+            dmap.put("subject", doc.get("subject"));
+            dmap.put("types", joiner.join(doc.getValues("r_type")));
+            dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
+
+            String pr = doc.get("pr_bin");
+            if (pr == null)
+                pr = "0";
+            dmap.put("pr_bin", pr);
+            dmap.put("score", Double.toString(hits[i].score));
+            this_dispdocs.add(dmap);
+        }
+
+        int first_nonzero_type_count = 0;
+        String first_nonzero_type = "";
+        for (Map.Entry<String, ArrayList<HashMap<String, String>>> disp_pair : disp_docs.entrySet()) {
+            String this_type = disp_pair.getKey();
+            ArrayList this_dispdocs = disp_pair.getValue();
+            Collections.sort(this_dispdocs, Comparators.SCORE);
+            if (first_nonzero_type_count == 0 && this_dispdocs.size() > 0) {
+                first_nonzero_type_count = this_dispdocs.size();
+                first_nonzero_type = this_type;
+            }
+        }
+        context.put("first_type", first_nonzero_type);
+    	}catch (Exception e) {
+    		System.err.println("ERROR: " + e.getMessage());
+    		System.exit(1);
+    	}
+    }
 
     public static void main(String[] args) throws Exception {
         // FreebaseTools main shell command dispatch.
@@ -306,140 +371,25 @@ public class SearchServer {
             Joiner joiner = Joiner.on(", ");
             Ranker r = new MultiFieldRanker(tools.getIndexSearcher(), fbi.getIndexAnalyzer(), srv.search_depth);
             get("/search", (req, res) -> {
-                StringWriter bufw = new StringWriter();
-                String qstring = req.queryParams("q");
-
-                TopDocs results = r.rank(qstring);
-                ScoreDoc[] hits = results.scoreDocs;
-                int numTotalHits = results.totalHits;
-                LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
-                String types[] = {"PER", "ORG", "GPE", "LOC", "FAC", "OTHER"};
-                for (String t : types) {
-                    disp_docs.put(t, new ArrayList(hits.length));
-                }
-
+            	StringWriter bufw = new StringWriter();
                 Map<String, Object> context = new HashMap<>();
-                context.put("query", qstring);
-                context.put("totalHits", numTotalHits);
-                context.put("hits", hits);
-                context.put("docs", disp_docs);
-
-                for (int i = 0; i < hits.length; i++) {
-                    bufw.getBuffer().setLength(0);
-                    int docid = hits[i].doc;
-                    float score = hits[i].score;
-                    Document doc = tools.getDocumentInMode(docid);
-
-                    Labeling labs = srv.classify(doc, classifier);
-                    String type = labs.getBestLabel().toString();
-                    ArrayList<HashMap<String, String>> this_dispdocs = disp_docs.get(type);
-                    if (this_dispdocs == null) {
-                        this_dispdocs = new ArrayList<HashMap<String, String>>(hits.length);
-                        disp_docs.put(type, this_dispdocs);
-                    }
-
-                    abbrev.render(doc, bufw, score);
-
-                    HashMap<String, String> dmap = new HashMap();
-                    dmap.put("text", bufw.toString());
-                    dmap.put("subject", doc.get("subject"));
-                    dmap.put("types", joiner.join(doc.getValues("r_type")));
-                    dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
-
-                    String pr = doc.get("pr_bin");
-                    if (pr == null)
-                        pr = "0";
-                    dmap.put("pr_bin", pr);
-                    dmap.put("score", Double.toString(hits[i].score));
-                    this_dispdocs.add(dmap);
-                }
-
-                int first_nonzero_type_count = 0;
-                String first_nonzero_type = "";
-                for (Map.Entry<String, ArrayList<HashMap<String, String>>> disp_pair : disp_docs.entrySet()) {
-                    String this_type = disp_pair.getKey();
-                    ArrayList this_dispdocs = disp_pair.getValue();
-                    Collections.sort(this_dispdocs, Comparators.SCORE);
-                    if (first_nonzero_type_count == 0 && this_dispdocs.size() > 0) {
-                        first_nonzero_type_count = this_dispdocs.size();
-                        first_nonzero_type = this_type;
-                    }
-                }
-                context.put("first_type", first_nonzero_type);
+                String qstring = req.queryParams("q");
+                setupSearch(bufw, context, qstring, r, srv, classifier, tools,  abbrev, joiner);
+                
                 bufw.getBuffer().setLength(0);
                 serp_template.evaluate(bufw, context);
                 return bufw.toString();
             });
             get("/search.json", (req, res) -> {
                 StringWriter bufw = new StringWriter();
+                Map<String, Object> context = new HashMap<>();
                 String qstring = req.queryParams("q");
-
-                TopDocs results = r.rank(qstring);
-                ScoreDoc[] hits = results.scoreDocs;
-                int numTotalHits = results.totalHits;
-                LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
-                String types[] = {"PER", "ORG", "GPE", "LOC", "FAC", "OTHER"};
-                for (String t : types) {
-                    disp_docs.put(t, new ArrayList(hits.length));
-                }
+                setupSearch(bufw, context, qstring, r, srv, classifier, tools,  abbrev, joiner);
                 
                 ObjectMapper mapper = new ObjectMapper();
-                Map<String, Object> context = new HashMap<>();
-                context.put("query", qstring);
-                context.put("totalHits", numTotalHits);
-                context.put("hits", hits);
-                context.put("docs", disp_docs);
-                
-                
-                for (int i = 0; i < hits.length; i++) {
-                    bufw.getBuffer().setLength(0);
-                    int docid = hits[i].doc;
-                    float score = hits[i].score;
-                    Document doc = tools.getDocumentInMode(docid);
-
-                    Labeling labs = srv.classify(doc, classifier);
-                    String type = labs.getBestLabel().toString();
-                    ArrayList<HashMap<String, String>> this_dispdocs = disp_docs.get(type);
-                    if (this_dispdocs == null) {
-                        this_dispdocs = new ArrayList<HashMap<String, String>>(hits.length);
-                        disp_docs.put(type, this_dispdocs);
-                    }
-
-                    abbrev.render(doc, bufw, score);
-
-                    HashMap<String, String> dmap = new HashMap();
-                    dmap.put("text", bufw.toString());
-                    dmap.put("subject", doc.get("subject"));
-                    dmap.put("types", joiner.join(doc.getValues("r_type")));
-                    dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
-
-                    String pr = doc.get("pr_bin");
-                    if (pr == null)
-                        pr = "0";
-                    dmap.put("pr_bin", pr);
-                    dmap.put("score", Double.toString(hits[i].score));
-                    this_dispdocs.add(dmap);
-                }
-
-                int first_nonzero_type_count = 0;
-                String first_nonzero_type = "";
-                for (Map.Entry<String, ArrayList<HashMap<String, String>>> disp_pair : disp_docs.entrySet()) {
-                    String this_type = disp_pair.getKey();
-                    ArrayList this_dispdocs = disp_pair.getValue();
-                    Collections.sort(this_dispdocs, Comparators.SCORE);
-                    if (first_nonzero_type_count == 0 && this_dispdocs.size() > 0) {
-                        first_nonzero_type_count = this_dispdocs.size();
-                        first_nonzero_type = this_type;
-                    }
-                }
-                context.put("first_type", first_nonzero_type);
-                
                 String contextJSON = mapper.writeValueAsString(context);                
-                System.out.println(contextJSON+"\n");
-
                 bufw.getBuffer().setLength(0);
                 serp_template.evaluate(bufw, context);
-                
                 return contextJSON;
             });
 
