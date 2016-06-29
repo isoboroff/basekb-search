@@ -436,14 +436,11 @@ public class SearchServer {
                 
                 String contextJSON = mapper.writeValueAsString(context);                
                 System.out.println(contextJSON+"\n");
-                try{
-                	mapper.writeValue(new File("/home/ram7/Desktop/test.json"), context);
-                } catch (Exception e){
-                	e.printStackTrace();
-                }
+
                 bufw.getBuffer().setLength(0);
                 serp_template.evaluate(bufw, context);
-                return bufw.toString();
+                
+                return contextJSON;
             });
 
         }
