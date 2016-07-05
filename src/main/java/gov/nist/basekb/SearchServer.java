@@ -241,96 +241,19 @@ public class SearchServer {
         }
     }
     
-    public static void setupSearch(StringWriter bufw, Map<String, Object> context, String qstring, Ranker r, SearchServer srv, Classifier classifier, FreebaseSearcher tools, EntityRenderer abbrev, Joiner joiner)
-    {
-    	try{
-        TopDocs results = r.rank(qstring);
-        ScoreDoc[] hits = results.scoreDocs;
-        int numTotalHits = results.totalHits;
-        LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
-        String types[] = {"PER", "ORG", "GPE", "LOC", "FAC", "OTHER"};
-        for (String t : types) {
-            disp_docs.put(t, new ArrayList(hits.length));
-        }
-
-        context.put("query", qstring);
-        context.put("totalHits", numTotalHits);
-        context.put("hits", hits);
-        context.put("docs", disp_docs);
-
-        for (int i = 0; i < hits.length; i++) {
-            bufw.getBuffer().setLength(0);
-            int docid = hits[i].doc;
-            float score = hits[i].score;
-            Document doc = tools.getDocumentInMode(docid);
-
-            Labeling labs = srv.classify(doc, classifier);
-            String type = labs.getBestLabel().toString();
-            ArrayList<HashMap<String, String>> this_dispdocs = disp_docs.get(type);
-            if (this_dispdocs == null) {
-                this_dispdocs = new ArrayList<HashMap<String, String>>(hits.length);
-                disp_docs.put(type, this_dispdocs);
-            }
-
-            abbrev.render(doc, bufw, score);
-
-            HashMap<String, String> dmap = new HashMap();
-            dmap.put("text", bufw.toString());
-            dmap.put("subject", doc.get("subject"));
-            dmap.put("types", joiner.join(doc.getValues("r_type")));
-            dmap.put("label", getFirstEnglishValue(doc, "rs_label"));
-
-            String pr = doc.get("pr_bin");
-            if (pr == null)
-                pr = "0";
-            dmap.put("pr_bin", pr);
-            dmap.put("score", Double.toString(hits[i].score));
-            this_dispdocs.add(dmap);
-        }
-
-        int first_nonzero_type_count = 0;
-        String first_nonzero_type = "";
-        for (Map.Entry<String, ArrayList<HashMap<String, String>>> disp_pair : disp_docs.entrySet()) {
-            String this_type = disp_pair.getKey();
-            ArrayList this_dispdocs = disp_pair.getValue();
-            Collections.sort(this_dispdocs, Comparators.SCORE);
-            if (first_nonzero_type_count == 0 && this_dispdocs.size() > 0) {
-                first_nonzero_type_count = this_dispdocs.size();
-                first_nonzero_type = this_type;
-            }
-        }
-        context.put("first_type", first_nonzero_type);
-    	}catch (Exception e) {
-    		System.err.println("ERROR: " + e.getMessage());
-    		System.exit(1);
-    	}
-    }
 
     public static void main(String[] args) throws Exception {
         // FreebaseTools main shell command dispatch.
         SearchServer srv = new SearchServer(args);
-        FreebaseIndexer fbi = new FreebaseIndexer(srv.index_path);
-        fbi.INDEX_DIRECTORY_NAME = srv.index_path;
-        FreebaseSearcher tools = new FreebaseSearcher(fbi);
-
-        EntityRenderer abbrev = new EntityTypeRenderer(tools);
-        LongFormRenderer full = new LongFormRenderer();
-
-        Classifier tmpclass = null;
-        ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(srv.classifier_path)));
-        tmpclass = (Classifier) ois.readObject();
-        final Classifier classifier = tmpclass;
-        ois.close();
-
-        Pipe pipe = classifier.getInstancePipe();
+        SearchSetup ss = new SearchSetup(srv);
 
         try {
-            if (fbi.SHOW_DEBUG) {
-                fbi.printLog("DBG: cmdline args:");
+            if (ss.getFbi().SHOW_DEBUG) {
+            	ss.getFbi().printLog("DBG: cmdline args:");
                 for (String arg : args)
-                    fbi.printLog(" " + arg);
-                fbi.printlnLog();
-                fbi.printlnLog("DBG: configuration:");
+                	ss.getFbi().printLog(" " + arg);
+                ss.getFbi().printlnLog();
+                ss.getFbi().printlnLog("DBG: configuration:");
             }
 
             staticFileLocation("/public");
@@ -346,15 +269,15 @@ public class SearchServer {
 
             PebbleTemplate disp_template = engine.getTemplate("templates/disp.peb");
             get("/lookup/:subject", (req, res) -> {
-                tools.getIndexReader();
+                ss.getTools().getIndexReader();
                 Map<String, Object> context = new HashMap<>();
-                int docid = tools.getSubjectDocID(req.params(":subject"));
+                int docid = ss.getTools().getSubjectDocID(req.params(":subject"));
                 if (docid < 0) {
                     halt(404, "Subject not found");
                 } else {
-                    Document doc = tools.getDocumentInMode(docid);
+                    Document doc = ss.getTools().getDocumentInMode(docid);
                     StringWriter bufw = new StringWriter();
-                    full.render(doc, bufw);
+                    ss.getFull().render(doc, bufw);
                     context.put("text", bufw.toString());
                     context.put("doc", docToMap(doc));
                     context.put("docid", docid);
@@ -368,29 +291,18 @@ public class SearchServer {
             });
 
             PebbleTemplate serp_template = engine.getTemplate("templates/serp.peb");
-            Joiner joiner = Joiner.on(", ");
-            Ranker r = new MultiFieldRanker(tools.getIndexSearcher(), fbi.getIndexAnalyzer(), srv.search_depth);
+
             get("/search", (req, res) -> {
-            	StringWriter bufw = new StringWriter();
-                Map<String, Object> context = new HashMap<>();
-                String qstring = req.queryParams("q");
-                setupSearch(bufw, context, qstring, r, srv, classifier, tools,  abbrev, joiner);
-                
-                bufw.getBuffer().setLength(0);
-                serp_template.evaluate(bufw, context);
-                return bufw.toString();
+                ss.setup(srv, req);
+                ss.getBufw().getBuffer().setLength(0);
+                serp_template.evaluate(ss.getBufw(), ss.getContext());
+                return ss.getBufw().toString();
             });
             get("/search.json", (req, res) -> {
-                StringWriter bufw = new StringWriter();
-                Map<String, Object> context = new HashMap<>();
-                String qstring = req.queryParams("q");
-                setupSearch(bufw, context, qstring, r, srv, classifier, tools,  abbrev, joiner);
-                
-                ObjectMapper mapper = new ObjectMapper();
-                String contextJSON = mapper.writeValueAsString(context);                
-                bufw.getBuffer().setLength(0);
-                serp_template.evaluate(bufw, context);
-                return contextJSON;
+            	ss.setup(srv, req);
+                ss.getBufw().getBuffer().setLength(0);
+                serp_template.evaluate(ss.getBufw(), ss.getContext());
+                return ss.getContextJSON();
             });
 
         }
