@@ -1,20 +1,13 @@
 package gov.nist.basekb;
 
-import java.io.StringWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.List;
-import java.util.Iterator;
-import java.util.Collection;
-
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.IndexableField;
-
 import com.google.common.collect.Multimap;
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.ArrayListMultimap;
+import org.apache.lucene.document.Document;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
    Straight text entities, with a handy A NAME before each field.
@@ -39,7 +32,7 @@ public class LongFormRenderer extends EntityRenderer {
             if (! FIELD_NAME_SUBJECT.equals(field)) {
 			    Collection<String> vals_list = dmap.get(field);
 				Iterator<String> vals = vals_list.iterator();
-				out.print("<a name=\"" + field + "\">");
+				out.print("<a name=\"" + field + "\"></a>");
 				if (vals_list.size() == 1) {
 					out.println("    " + field + ": " + linkify(normalizeNewlines(vals.next())));
 				} else {
