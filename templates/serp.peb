@@ -32,7 +32,7 @@
     <div class="container">
       <section class="col-xs-12 col-sm-6 col-md-12">
 
-	<form class="form-horizontal" method="GET" action="/search">
+	<form class="form-horizontal" method="GET" action="search">
 	  <div class="form-group form-group-lg col-md-12">
 	    <label for="q" class="col-sm-2 control-label">Search BaseKB</label>
 	    <span class="col-sm-6 col-md-8">
@@ -82,7 +82,7 @@
 	      </ul>
 	    </div>
 	    <div class="col-xs-12 col-sm-12 col-md-8 excerpet">
-	      <h3><a href="/lookup/{{ doc.subject }}" title="">{{ doc.label }} ({{ doc.subject}})</a></h3>
+	      <h3><a href="lookup/{{ doc.subject }}" title="">{{ doc.label }} ({{ doc.subject}})</a></h3>
 	      <pre>{{ doc.text | raw }}</pre>
               <!-- <span class="plus"><a href="#" title="Lorem ipsum"><i class="glyphicon glyphicon-plus"></i></a></span> -->
 	    </div>
