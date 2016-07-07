@@ -22,20 +22,12 @@ public class EntityTypeRenderer extends EntityRenderer {
 
 	public EntityTypeRenderer(FreebaseSearcher tools) {
 		this.tools = tools;
-		EntityRenderer person = new EntityRenderer(tools);
-		person.addPriorityField("f_type.object.name");
-		person.addPriorityField("f_common.topic.description");
-		person.setTypeMatch("f_people.person");
-		type_map.put("f_people.person", person);
-
-		EntityRenderer place = new EntityRenderer(tools);
-		place.addPriorityField("f_type.object.name");
-		place.addPriorityField("f_common.topic.description");
-		place.addPriorityField("f_base.locations");
-		place.addPriorityField("f_government.political_district");
-		place.addPriorityField("f_organization.organization_member");
-		place.setTypeMatch("f_location");
-		type_map.put("f_location.location", place);
+		EntityRenderer everything = new EntityRenderer(tools);
+		everything.addPriorityField("f_type.object.name");
+		everything.addPriorityField("f_common.topic.description");
+ 		everything.addPriorityField("f_common.topic.alias");
+		everything.setTypeMatch("f_");
+		type_map.put("f_common.topic", everything);
 	}
 	
 	public EntityRenderer getRendererByType(String type) {
@@ -51,9 +43,10 @@ public class EntityTypeRenderer extends EntityRenderer {
 	public String getBestType(Document d) {
 		String best = null;
 		for (IndexableField type : d.getFields("r_type")) {
-			if (type.stringValue().equals("f_people.person") ||
+			if (type.stringValue().equals("f_common.topic") ||
 				type.stringValue().equals("f_location.location") ||
-				type.stringValue().equals("f_organization.organization")) {
+				type.stringValue().equals("f_organization.organization")||
+				type.stringValue().equals("f_people.person")) {						
 				best = type.stringValue();
 				break;
 			}

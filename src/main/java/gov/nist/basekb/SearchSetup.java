@@ -1,15 +1,5 @@
 package gov.nist.basekb;
 
-import cc.mallet.classify.Classifier;
-import cc.mallet.pipe.Pipe;
-
-import cc.mallet.types.Labeling;
-import gov.nist.basekb.SearchServer.Comparators;
-import spark.Request;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Joiner;
-
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
@@ -21,9 +11,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.lucene.document.Document;
-
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Joiner;
+
+import cc.mallet.classify.Classifier;
+import cc.mallet.pipe.Pipe;
+import cc.mallet.types.Labeling;
+import gov.nist.basekb.SearchServer.Comparators;
+import spark.Request;
 
 
 public class SearchSetup {
