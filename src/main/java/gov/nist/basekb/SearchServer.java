@@ -290,14 +290,14 @@ public class SearchServer {
 
             get("/search", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-		ss.setup(srv, req);
+                ss.setup(srv, req);
                 ss.getBufw().getBuffer().setLength(0);
                 serp_template.evaluate(ss.getBufw(), ss.getContext());
                 return ss.getBufw().toString();
             });
 	    get("/search.json", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-		ss.setup(srv, req);
+                ss.setup(srv, req);
                 ss.getBufw().getBuffer().setLength(0);
                 serp_template.evaluate(ss.getBufw(), ss.getContext());
                 return ss.getContextJSON();

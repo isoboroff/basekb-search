@@ -166,7 +166,10 @@ public class FreebaseIndexer {
     public FreebaseIndexer(String home) {
         FREEBASE_TOOLS_HOME = home;
     }
-
+    public FreebaseIndexer(String home, String indexDirectory) {
+        FREEBASE_TOOLS_HOME = home;
+        INDEX_DIRECTORY_NAME = indexDirectory;
+    }
        //
     ////// Utilities:
      //

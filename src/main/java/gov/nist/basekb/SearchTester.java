@@ -20,30 +20,32 @@ import java.util.List;
 
 public class SearchTester {
     @Option(name="-d", aliases={"--search-depth"}, usage="Ranking depth (default 100)")
-    int search_depth = 100;
+    int search_depth = 500;
 
     @Argument
     List<String> posargs = new ArrayList<String>();
-
+    
+    
     public FreebaseSearcher fbs;
     public Ranker ranker;
     public String query_file;
+    public String indexDirectory;
 
     public SearchTester(String[] args) throws Exception {
         CmdLineParser argparser = new CmdLineParser(this);
         String home = null;
         String ranker_name = null;
-
+        
         try {
             argparser.parseArgument(args);
 
-            if (posargs.size() != 3) {
+            if (posargs.size() != 4) {
                 throw new CmdLineException(argparser, Messages.ILLEGAL_LIST, "Command line fail");
             }
-            home = posargs.get(0);
-            ranker_name = posargs.get(1);
-            query_file = posargs.get(2);
-
+            home = posargs.get(0); //pathname to home
+            ranker_name = posargs.get(1);//to ranker (gov.nist.basekb)
+            query_file = posargs.get(2);//txt file for queries
+            indexDirectory = posargs.get(3);//pathname to index
             if (home == null) {
                 throw new CmdLineException(argparser, Messages.ILLEGAL_PATH, "No home given");
             }
@@ -53,6 +55,9 @@ public class SearchTester {
             if (query_file == null) {
                 throw new CmdLineException(argparser, Messages.ILLEGAL_PATH, "No query file given");
             }
+            if (indexDirectory == null) {
+                throw new CmdLineException(argparser, Messages.ILLEGAL_PATH, "No index directory given");
+            }
 
         } catch (CmdLineException cle) {
             System.err.println(cle.getMessage());
@@ -60,7 +65,7 @@ public class SearchTester {
             System.err.println();
         }
 
-        fbs = new FreebaseSearcher(new FreebaseIndexer(home));
+        fbs = new FreebaseSearcher(new FreebaseIndexer(home, indexDirectory));
         Class myClass = Class.forName(ranker_name);
         Class[] types = {IndexSearcher.class, Analyzer.class, Integer.TYPE};
         Constructor constructor = myClass.getConstructor(types);
@@ -121,7 +126,7 @@ public class SearchTester {
         System.out.println("zero_returns " + zero_returns);
 	}
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         // String home = args[0];
         // String ranker_name = args[1];
         // String query_file = args[2];
