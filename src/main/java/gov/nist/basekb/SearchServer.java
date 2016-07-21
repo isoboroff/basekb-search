@@ -152,7 +152,7 @@ public class SearchServer {
         }
     }
 
-    public Labeling classify(Document doc, Classifier classifier) {
+    public static Labeling classify(Document doc, Classifier classifier) {
         Pipe p = classifier.getInstancePipe();
         Joiner join = Joiner.on(" ");
         String data = join.join(doc.getValues("r_type"));
