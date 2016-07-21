@@ -135,7 +135,7 @@ public class SearchTester {
 							}
 						}
 					}
-					if (found_at_rank == -1 || rank >100){
+					if (found_at_rank == -1){
 						fails++;
 						System.out.println("FAIL!");
 					}
