@@ -41,7 +41,8 @@ public class SearchSetup {
     public String qstring;
     public ObjectMapper mapper;
     public String contextJSON;
-	
+    public String primaryType;
+
 	public SearchSetup(SearchServer srv) throws Exception
 	{
 		fbi = new FreebaseIndexer(srv.index_path);
@@ -58,8 +59,7 @@ public class SearchSetup {
         
         joiner = Joiner.on(", ");
         r = new MultiFieldRanker(tools.getIndexSearcher(), fbi.getIndexAnalyzer(), srv.search_depth);
-        
-        
+        primaryType = "PER";
 	}
 	public void setup(SearchServer srv, Request req)
 	{
@@ -72,8 +72,16 @@ public class SearchSetup {
             int numTotalHits = results.totalHits;
             LinkedHashMap<String, ArrayList<HashMap<String, String>>> disp_docs = new LinkedHashMap<String, ArrayList<HashMap<String, String>>>();
             String types[] = {"PER", "ORG", "GPE", "LOC", "FAC", "OTHER"};
+            
+            int docidOne = hits[0].doc;
+            float scoreOne = hits[0].score;
+            Document docOne = tools.getDocumentInMode(docidOne);
+            Labeling labsOne = srv.classify(docOne, classifier);
+            primaryType = labsOne.getBestLabel().toString();
+            disp_docs.put(primaryType, new ArrayList(hits.length));
             for (String t : types) {
-                disp_docs.put(t, new ArrayList(hits.length));
+            	if(t.equalsIgnoreCase(primaryType)==false)
+            		disp_docs.put(t, new ArrayList(hits.length));
             }
 
             context.put("query", qstring);
