@@ -89,7 +89,7 @@ public class SearchTester {
 		ranker = (Ranker)constructor.newInstance(fbs.getIndexSearcher(), fbs.fbi.getIndexAnalyzer(), search_depth);
 	}
 
-	public void run() throws Exception {
+	public void run(boolean typeGuess) throws Exception {
 		BufferedReader queries = new BufferedReader(new FileReader(query_file));
 		String line = null;
 		int num_q = 0;
@@ -119,7 +119,24 @@ public class SearchTester {
 							String doc_kbid = d.get(fbs.FIELD_NAME_SUBJECT);
 							Labeling labs = SearchServer.classify(d, classifierTest);
 							String type = labs.getBestLabel().toString();
+							if(typeGuess){
 							if(type.equalsIgnoreCase(queryType)){
+								rank++;
+								System.out.print("--" + rank + " " + doc_kbid + " " + type);
+								if (doc_kbid.equals(kbid)) {
+									System.out.print("!!");
+									sum_rr += 1.0 / rank;
+									found_at_rank = rank;
+									System.out.println(num_q + " " + rank);
+									break;
+								} else {
+									System.out.print("..");
+								}
+								System.out.println();
+							}
+							}
+							else
+							{
 								rank++;
 								System.out.print("--" + rank + " " + doc_kbid + " " + type);
 								if (doc_kbid.equals(kbid)) {
@@ -159,7 +176,8 @@ public class SearchTester {
 
 
 		SearchTester tester = new SearchTester(args);
-		tester.run();
+		tester.run(false);
+		tester.run(true);
 	}
 
 }
