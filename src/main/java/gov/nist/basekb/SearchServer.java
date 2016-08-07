@@ -4,11 +4,7 @@ package gov.nist.basekb;
 
 // Java:
 
-import cc.mallet.classify.Classifier;
-import cc.mallet.pipe.Pipe;
-import cc.mallet.types.Instance;
-import cc.mallet.types.Labeling;
-import com.google.common.base.Joiner;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import org.apache.lucene.document.Document;
@@ -50,9 +46,6 @@ public class SearchServer {
 
     @Option(name = "-i", aliases = {"--index"}, usage = "Index location")
     public String index_path = "/Users/soboroff/basekb/basekb-index";
-
-    @Option(name = "-m", aliases = {"--classifier"}, usage = "MALLET classifier for entity types")
-    public String classifier_path = "/Users/soboroff/basekb/basekb-search/enttype.classifier";
 
     @Option(name = "-d", aliases = {"--search-depth"}, usage = "Depth for first-pass search results")
     public int search_depth = 1000;
@@ -155,17 +148,7 @@ public class SearchServer {
         }
     }
 
-    public Labeling classify(Document doc, Classifier classifier) {
-        Pipe p = classifier.getInstancePipe();
-        Joiner join = Joiner.on(" ");
-        String data = join.join(doc.getValues("r_type"));
-        String name = doc.get("rs_label");
-        Instance i = new Instance(data, null, name, null);
-        i = p.instanceFrom(i);
-        Labeling lab = classifier.classify(i).getLabeling();
-        return lab;
-    }
-
+    // A LongFieldSource that returns a default value when a Document is missing the field.
     public static class SafeLongFieldSource extends LongFieldSource {
         public SafeLongFieldSource(String field) {
             super(field);
@@ -248,15 +231,17 @@ public class SearchServer {
     public static void main(String[] args) throws Exception {
         // FreebaseTools main shell command dispatch.
         SearchServer srv = new SearchServer(args);
-        SearchSetup ss = new SearchSetup(srv);
+        FreebaseIndexer index_tools = new FreebaseIndexer(srv.config_file_path);
+        FreebaseSearcher search_tools = new FreebaseSearcher(index_tools);
+        Ranker ranker = new MultiFieldRanker(search_tools.getIndexSearcher(), index_tools.getIndexAnalyzer(), srv.search_depth);
 
         try {
-            if (ss.getFbi().SHOW_DEBUG) {
-                ss.getFbi().printLog("DBG: cmdline args:");
+            if (index_tools.SHOW_DEBUG) {
+                index_tools.printLog("DBG: cmdline args:");
                 for (String arg : args)
-                    ss.getFbi().printLog(" " + arg);
-                ss.getFbi().printlnLog();
-                ss.getFbi().printlnLog("DBG: configuration:");
+                    index_tools.printLog(" " + arg);
+                index_tools.printlnLog();
+                index_tools.printlnLog("DBG: configuration:");
             }
 
             staticFileLocation("/public");
@@ -272,15 +257,16 @@ public class SearchServer {
 
             PebbleTemplate disp_template = engine.getTemplate("templates/disp.peb");
             get("/lookup/:subject", (req, res) -> {
-                ss.getTools().getIndexReader();
+                search_tools.getIndexReader();
+                LongFormRenderer doc_renderer = new LongFormRenderer();
                 Map<String, Object> context = new HashMap<>();
-                int docid = ss.getTools().getSubjectDocID(req.params(":subject"));
+                int docid = search_tools.getSubjectDocID(req.params(":subject"));
                 if (docid < 0) {
                     halt(404, "Subject not found");
                 } else {
-                    Document doc = ss.getTools().getDocumentInMode(docid);
+                    Document doc = search_tools.getDocumentInMode(docid);
                     StringWriter bufw = new StringWriter();
-                    ss.getFull().render(doc, bufw);
+                    doc_renderer.render(doc, bufw);
                     context.put("text", bufw.toString());
                     context.put("doc", docToMap(doc));
                     context.put("docid", docid);
@@ -294,20 +280,22 @@ public class SearchServer {
             });
 
             PebbleTemplate serp_template = engine.getTemplate("templates/serp.peb");
-
             get("/search", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-                ss.setup(srv, req);
-                ss.getBufw().getBuffer().setLength(0);
-                serp_template.evaluate(ss.getBufw(), ss.getContext());
-                return ss.getBufw().toString();
+                Search s = new Search(ranker, search_tools);
+                HashMap context = s.do_search(req);
+                StringWriter bufw = new StringWriter();
+
+                serp_template.evaluate(bufw, context);
+                return bufw.toString();
             });
+
             get("/search.json", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-                ss.setup(srv, req);
-                ss.getBufw().getBuffer().setLength(0);
-                serp_template.evaluate(ss.getBufw(), ss.getContext());
-                return ss.getContextJSON();
+                Search s = new Search(ranker, search_tools);
+                HashMap context = s.do_search(req);
+                ObjectMapper mapper = new ObjectMapper();
+                return mapper.writeValueAsString(context);
             });
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
