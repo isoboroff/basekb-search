@@ -521,6 +521,7 @@ public class FreebaseSearcher {
         }
         catch (Exception e) {
             fbi.log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(fbi.log);
             System.exit(1);
         }
     }
@@ -583,6 +584,7 @@ public class FreebaseSearcher {
         }
         catch (Exception e) {
             fbi.log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(fbi.log);
             System.exit(1);
         }
     }

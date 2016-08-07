@@ -1034,6 +1034,7 @@ public class FreebaseTools {
         }
         catch (Exception e) {
             log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(log);
             System.exit(1);
         }
     }
@@ -1087,6 +1088,7 @@ public class FreebaseTools {
         }
         catch (Exception e) {
             log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(log);
             System.exit(1);
         }
     }
@@ -1149,6 +1151,7 @@ public class FreebaseTools {
         }
         catch (Exception e) {
             log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(log);
             System.exit(1);
         }
     }
@@ -1180,6 +1183,7 @@ public class FreebaseTools {
         }
         catch (Exception e) {
             log.println("ERROR: " + e.getMessage());
+            e.printStackTrace(log);
             System.exit(1);
         }
     }

@@ -18,8 +18,6 @@ import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.queries.function.FunctionValues;
 import org.apache.lucene.queries.function.docvalues.LongDocValues;
 import org.apache.lucene.queries.function.valuesource.LongFieldSource;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.mutable.MutableValue;
 import org.apache.lucene.util.mutable.MutableValueLong;
@@ -27,8 +25,13 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static spark.Spark.*;
 
@@ -39,24 +42,24 @@ import static spark.Spark.*;
 
 public class SearchServer {
 
-    @Option(name="-c", aliases={"--config"}, usage="FreebaseTools config file")
+    @Option(name = "-c", aliases = {"--config"}, usage = "FreebaseTools config file")
     public String config_file_path = "/Users/soboroff/basekb/basekb-search/config.dat";
 
-    @Option(name="-p", aliases={"--port"}, usage="Port for service (default 8080)")
+    @Option(name = "-p", aliases = {"--port"}, usage = "Port for service (default 8080)")
     public int server_port = 8080;
 
-    @Option(name="-i", aliases={"--index"}, usage="Index location")
+    @Option(name = "-i", aliases = {"--index"}, usage = "Index location")
     public String index_path = "/Users/soboroff/basekb/basekb-index";
 
-    @Option(name="-m", aliases={"--classifier"}, usage="MALLET classifier for entity types")
+    @Option(name = "-m", aliases = {"--classifier"}, usage = "MALLET classifier for entity types")
     public String classifier_path = "/Users/soboroff/basekb/basekb-search/enttype.classifier";
 
-    @Option(name="-d", aliases={"--search-depth"}, usage="Depth for first-pass search results")
+    @Option(name = "-d", aliases = {"--search-depth"}, usage = "Depth for first-pass search results")
     public int search_depth = 1000;
 
     public static Map<String, String> docToMap(Document doc) {
         Map<String, String> m = new LinkedHashMap<>();
-        for (IndexableField field: doc.getFields()) {
+        for (IndexableField field : doc.getFields()) {
             String key = field.name();
             String val = field.stringValue();
             if (m.containsKey(key)) {
@@ -76,13 +79,14 @@ public class SearchServer {
         else
             out.println(tools.getSubjectName(subject) + ":");
         for (IndexableField field : subject.getFields()) {
-            if (! tools.FIELD_NAME_SUBJECT.equals(field.name())) {
+            if (!tools.FIELD_NAME_SUBJECT.equals(field.name())) {
                 out.print(indent + field.name() + ": " + tools.fbi.normalizeNewlines(field.stringValue()));
                 if (field.stringValue().startsWith("f_m.")) {
                     int docid = tools.getSubjectDocID(field.stringValue());
                     if (docid > 0) {
                         Document new_subj = tools.getDocumentInMode(docid);
-                        INNER: for (IndexableField new_field : new_subj.getFields()) {
+                        INNER:
+                        for (IndexableField new_field : new_subj.getFields()) {
                             if ((new_field.name().equals("rs_label") ||
                                     new_field.name().equals("f_type.object.name")) &&
                                     (new_field.stringValue().endsWith("@en"))) {
@@ -98,7 +102,7 @@ public class SearchServer {
     }
 
     public static String getFirstEnglishValue(Document doc, String key) {
-        for (String v: doc.getValues(key)) {
+        for (String v : doc.getValues(key)) {
             if (v.endsWith("@en")) {
                 return v;
             }
@@ -143,8 +147,7 @@ public class SearchServer {
         CmdLineParser parser = new CmdLineParser(this);
         try {
             parser.parseArgument(args);
-        }
-        catch (CmdLineException e) {
+        } catch (CmdLineException e) {
             System.err.println("ERROR: " + e.getMessage());
             System.err.println("Usage:");
             parser.printUsage(System.err);
@@ -173,11 +176,14 @@ public class SearchServer {
             if (ndv == null) {
                 ndv = new NumericDocValues() {
                     @Override
-                    public long get(int docid) { return 1; }
+                    public long get(int docid) {
+                        return 1;
+                    }
                 };
             }
             return ndv;
         }
+
         protected Bits getDocsWithField(LeafReaderContext readerContext, String field) throws IOException {
             Bits bits = readerContext.reader().getDocsWithField(field);
             if (bits == null) {
@@ -185,6 +191,7 @@ public class SearchServer {
             }
             return bits;
         }
+
         @Override
         public FunctionValues getValues(Map context, LeafReaderContext readerContext) throws IOException {
             final NumericDocValues arr = getNumericDocValues(readerContext, field);
@@ -290,21 +297,21 @@ public class SearchServer {
 
             get("/search", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-		ss.setup(srv, req);
+                ss.setup(srv, req);
                 ss.getBufw().getBuffer().setLength(0);
                 serp_template.evaluate(ss.getBufw(), ss.getContext());
                 return ss.getBufw().toString();
             });
-	    get("/search.json", (req, res) -> {
+            get("/search.json", (req, res) -> {
                 res.header("Content-Encoding", "gzip");
-		ss.setup(srv, req);
+                ss.setup(srv, req);
                 ss.getBufw().getBuffer().setLength(0);
                 serp_template.evaluate(ss.getBufw(), ss.getContext());
                 return ss.getContextJSON();
             });
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
+            e.printStackTrace(System.err);
             System.exit(1);
         }
     }
