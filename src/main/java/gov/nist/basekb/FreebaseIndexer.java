@@ -90,6 +90,11 @@ package gov.nist.basekb;
 
 // Java:
 
+import cc.mallet.classify.Classifier;
+import cc.mallet.pipe.Pipe;
+import cc.mallet.types.Instance;
+import cc.mallet.types.Labeling;
+import com.google.common.base.Joiner;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
 import org.apache.lucene.codecs.lucene50.Lucene50StoredFieldsFormat.Mode;
@@ -121,6 +126,9 @@ public class FreebaseIndexer {
     public boolean INDEX_LANGUAGE = true;
     public String TRIPLES_FILE = "/Users/soboroff/basekb/basekb-triples.gz";
     public String INDEX_DIRECTORY_NAME = "/Users/soboroff/basekb/basekb-index";
+
+    public String CLASSIFIER_FILE = "/Users/soboroff/basekb/basekb-search/enttype.classifier";
+    public Classifier classifier = null;
 
     public boolean OPTIMIZE_INDEX = false;
     public boolean INDEX_FULL_DATA = true;
@@ -497,8 +505,35 @@ public class FreebaseIndexer {
             return value;
     }
 
+    public Labeling classify(Document doc, Classifier classifier) throws Exception {
+        if (classifier == null) {
+            ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(CLASSIFIER_FILE)));
+            classifier = (Classifier) ois.readObject();
+            ois.close();
+        }
+        Pipe p = classifier.getInstancePipe();
+        Joiner join = Joiner.on(" ");
+        String data = join.join(doc.getValues("r_type"));
+        String name = doc.get("rs_label");
+        Instance i = new Instance(data, null, name, null);
+        i = p.instanceFrom(i);
+        Labeling lab = classifier.classify(i).getLabeling();
+        return lab;
+    }
 
-    public void indexTriples() throws IOException {
+    public String labelsToString(Labeling lab) {
+        StringBuilder sb = new StringBuilder();
+        int num_labs = lab.numLocations();
+        for (int i = 0; i < num_labs; i++) {
+            sb.append(lab.labelAtLocation(i)).append(":").append(lab.valueAtLocation(i));
+            if (i + 1 < num_labs) {
+                sb.append(",");
+            }
+        }
+        return sb.toString();
+    }
+
+    public void indexTriples() throws Exception {
         // Index the triples in `triplesFile' to a Lucene index.
         // This assumes that `triplesFile' is sorted by subject.
         // For each subject we collect all its predicate/value pairs and index them
@@ -563,7 +598,7 @@ public class FreebaseIndexer {
         printlnProg("");
     }
 
-    public void indexRecord(IndexWriter writer, String subject, Map<String,List<String>> predValues) throws IOException {
+    public void indexRecord(IndexWriter writer, String subject, Map<String,List<String>> predValues) throws Exception {
         Document doc = new Document();
         Field subjField = new StringField(FIELD_NAME_SUBJECT, normalizeUri(subject), Field.Store.YES);
         //printlnDbg("DBG: indexRecord: " + subject);
@@ -624,6 +659,10 @@ public class FreebaseIndexer {
             }
         }
         doc.add(new SortedNumericDocValuesField("pr_bin", pagerank));
+
+        Labeling lab = classify(doc, classifier);
+        doc.add(new Field("best_class", lab.getBestLabel().toString(), StoredField.TYPE));
+        doc.add(new Field("all_classes", labelsToString(lab), StoredField.TYPE));
 
         // we are creating the index from scratch, so we just add the document:
         writer.addDocument(doc);
