@@ -232,6 +232,7 @@ public class SearchServer {
         // FreebaseTools main shell command dispatch.
         SearchServer srv = new SearchServer(args);
         FreebaseIndexer index_tools = new FreebaseIndexer(srv.config_file_path);
+        index_tools.INDEX_DIRECTORY_NAME = srv.index_path;
         FreebaseSearcher search_tools = new FreebaseSearcher(index_tools);
         Ranker ranker = new MultiFieldRanker(search_tools.getIndexSearcher(), index_tools.getIndexAnalyzer(), srv.search_depth);
 
@@ -246,6 +247,10 @@ public class SearchServer {
 
             staticFileLocation("/public");
             port(srv.server_port);
+            int min_threads = 2;
+            int max_threads = 8;
+            int timeoutmillis = 30000;
+            threadPool(max_threads, min_threads, timeoutmillis);
             PebbleEngine engine = new PebbleEngine.Builder().build();
 
             PebbleTemplate main_template = engine.getTemplate("templates/main.peb");

@@ -51,6 +51,7 @@ public class Search {
                 Document doc = search_tools.getDocumentInMode(docid);
 
                 String type = doc.get("best_class");
+                if (type == null) { type = "OTHER"; }
                 ArrayList<HashMap<String, String>> this_dispdocs = disp_docs.get(type);
                 if (this_dispdocs == null) {
                     this_dispdocs = new ArrayList<HashMap<String, String>>(hits.length);
