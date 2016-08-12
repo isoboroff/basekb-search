@@ -1,0 +1,1 @@
+mvn install:install-file -Dfile=mallet/dist/mallet.jar -DgroupId=cc.mallet -DartifactId=mallet -Dversion=2.0.8RC3 -Dpackaging=jar

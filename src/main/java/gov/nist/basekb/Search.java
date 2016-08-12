@@ -29,6 +29,9 @@ public class Search {
         Joiner joiner = Joiner.on(" ");
 
         String qstring = req.queryParams("q");
+        if (qstring.isEmpty())
+            return context;
+
         try {
             TopDocs results = ranker.rank(qstring);
             ScoreDoc[] hits = results.scoreDocs;
