@@ -22,7 +22,6 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -50,6 +49,9 @@ public class SearchServer {
     @Option(name = "-d", aliases = {"--search-depth"}, usage = "Depth for first-pass search results")
     public int search_depth = 1000;
 
+    @Option(name = "-l", aliases = {"--label-db"}, usage = "Path to object-to-label database")
+    public String label_db_path = null;
+
     public static Map<String, String> docToMap(Document doc) {
         Map<String, String> m = new LinkedHashMap<>();
         for (IndexableField field : doc.getFields()) {
@@ -63,37 +65,6 @@ public class SearchServer {
         return m;
     }
 
-    public static void printSubjectVerbose(Document subject, float score, String indent,
-                                           FreebaseSearcher tools, PrintWriter out) throws IOException {
-        // Pretty-print everything we know about `subject' to `out'.
-        // Annotate its `score' if it is non-negative.
-        if (score >= 0.0)
-            out.println(tools.getSubjectName(subject) + ": [score=" + score + "]");
-        else
-            out.println(tools.getSubjectName(subject) + ":");
-        for (IndexableField field : subject.getFields()) {
-            if (!tools.FIELD_NAME_SUBJECT.equals(field.name())) {
-                out.print(indent + field.name() + ": " + tools.fbi.normalizeNewlines(field.stringValue()));
-                if (field.stringValue().startsWith("f_m.")) {
-                    int docid = tools.getSubjectDocID(field.stringValue());
-                    if (docid > 0) {
-                        Document new_subj = tools.getDocumentInMode(docid);
-                        INNER:
-                        for (IndexableField new_field : new_subj.getFields()) {
-                            if ((new_field.name().equals("rs_label") ||
-                                    new_field.name().equals("f_type.object.name")) &&
-                                    (new_field.stringValue().endsWith("@en"))) {
-                                out.print(" (" + tools.fbi.normalizeNewlines(new_field.stringValue()) + ")");
-                                break INNER;
-                            }
-                        }
-                    }
-                }
-                out.println("");
-            }
-        }
-    }
-
     public static String getFirstEnglishValue(Document doc, String key) {
         for (String v : doc.getValues(key)) {
             if (v.endsWith("@en")) {
@@ -101,16 +72,6 @@ public class SearchServer {
             }
         }
         return null;
-    }
-
-    public static void render_short(Document doc, float score, PrintWriter out) {
-        if (score > 0.0) {
-            out.println(doc.get("subject") + ": [" + score + "]");
-        } else {
-            out.println(doc.get("subject") + ":");
-        }
-        out.println("    " + getFirstEnglishValue(doc, "rs_label"));
-        out.println("    " + getFirstEnglishValue(doc, "f_common.topic.description"));
     }
 
     public static class Comparators {
@@ -235,6 +196,10 @@ public class SearchServer {
         index_tools.INDEX_DIRECTORY_NAME = srv.index_path;
         FreebaseSearcher search_tools = new FreebaseSearcher(index_tools);
         Ranker ranker = new MultiFieldRanker(search_tools.getIndexSearcher(), index_tools.getIndexAnalyzer(), srv.search_depth);
+
+        if (srv.label_db_path != null) {
+            search_tools.setLabelDb(srv.label_db_path);
+        }
 
         try {
             if (index_tools.SHOW_DEBUG) {

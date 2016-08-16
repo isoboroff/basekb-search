@@ -17,6 +17,7 @@ public class BuildLabelDb {
         RocksDB.loadLibrary();
         Options rockopts = new Options().setCreateIfMissing(true);
         RocksDB db = null;
+        int count = 0;
 
         try {
             BufferedReader in = new BufferedReader(new FileReader(args[0]));
@@ -30,9 +31,13 @@ public class BuildLabelDb {
                     byte[] value = fields[2].substring(1, fields[2].length() - 4).getBytes(StandardCharsets.UTF_8);
                     db.put(key, value);
                 }
+                count++;
+                if ((count % 100000) == 0)
+                    System.out.print(".");
             }
 
             db.close();
+            System.out.println();
         } catch (RocksDBException rdbe) {
             rdbe.printStackTrace(System.err);
         } catch (IOException ioe) {

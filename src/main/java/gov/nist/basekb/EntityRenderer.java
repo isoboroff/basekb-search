@@ -11,7 +11,6 @@ import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -31,11 +30,6 @@ public class EntityRenderer {
 	public EntityRenderer(FreebaseSearcher fbt) {
 		tools = fbt;
 	}
-
-    public String getSubjectName(Document subjectDoc) throws IOException {
-        // Return the string name of `subjectDoc'.
-        return subjectDoc.get(FIELD_NAME_SUBJECT);
-    }
 
 	public String normalizeNewlines(String value) {
 		return value.replace('\n', ' ');
@@ -66,14 +60,9 @@ public class EntityRenderer {
 	public String expand(String field_val) throws IOException {
 		String retval = field_val;
 		if (tools != null) {
-			int docid = tools.getSubjectDocID(field_val);
-			if (docid >= 0) {
-				Document doc = tools.getDocumentInMode(docid);
-				for (IndexableField l : doc.getFields("rs_label")) {
-					Matcher m = en_pattern.matcher(l.stringValue());
-					if (m.matches())
-						retval = field_val + " (" + m.group(1) + ")";
-				}
+			String label = tools.getSubjectName(field_val);
+			if (label != null) {
+				retval = field_val + " (" + label + ")";
 			}
 		}
 		return retval;

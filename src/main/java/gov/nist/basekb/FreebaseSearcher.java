@@ -99,6 +99,9 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
+import org.rocksdb.Options;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -182,6 +185,31 @@ public class FreebaseSearcher {
         return indexSearcher;
     }
 
+    RocksDB label_db = null;
+    public void setLabelDb(String filename) throws RocksDBException {
+        if (label_db != null)
+            label_db.close();
+        else
+            RocksDB.loadLibrary();
+        Options rockopts = new Options().setCreateIfMissing(false);
+        label_db = RocksDB.open(rockopts, filename);
+    }
+
+    public String getSubjectNameFromLabelDb(String subj) {
+        if (label_db == null)
+            return null;
+
+        byte[] key = subj.getBytes(StandardCharsets.UTF_8);
+        byte[] val = null;
+        try {
+            val = label_db.get(key);
+        } catch (RocksDBException e) { /* pass */ }
+
+        if (val == null)
+            return null;
+        else
+            return new String(val, StandardCharsets.UTF_8);
+    }
 
     public static class PagerankSimilarity extends Similarity {
         private final Similarity sim;
@@ -250,6 +278,14 @@ public class FreebaseSearcher {
     public String getSubjectName(Document subjectDoc) throws IOException {
         // Return the string name of `subjectDoc'.
         return subjectDoc.get(FIELD_NAME_SUBJECT);
+    }
+
+    public String getSubjectName(String subj) throws IOException {
+        if (label_db != null) {
+            return getSubjectNameFromLabelDb(subj);
+        } else {
+            return getSubjectName(getSubjectDoc(subj));
+        }
     }
 
     public String getSubjectPredicateValue(Document subjectDoc, String predName) throws IOException {
